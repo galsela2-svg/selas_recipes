@@ -70,13 +70,6 @@ export default function ExportPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">ייצוא לספר מתכונים</h1>
-        <p className="text-sm text-muted">
-          בחרו אילו מתכונים לכלול, ואנחנו נכין עמוד מעוצב שאפשר להדפיס או לשמור כ-PDF.
-        </p>
-      </div>
-
       <label className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
         <span className="flex items-center gap-2 text-sm font-medium text-foreground">
           <ImageIcon className="size-4 text-muted" />

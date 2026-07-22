@@ -63,14 +63,6 @@ export default function RoulettePage() {
 
   return (
     <div className="mx-auto max-w-md space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <Dices className="size-6 text-accent" />
-          גלגל המתכונים
-        </h1>
-        <p className="text-sm text-muted">לא יודעים מה לבשל? תנו לגורל להחליט.</p>
-      </div>
-
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <Badge

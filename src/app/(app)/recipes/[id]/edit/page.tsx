@@ -32,10 +32,6 @@ export default function EditRecipePage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">עריכת מתכון</h1>
-      </div>
-
       <RecipeForm
         initialRecipe={recipe}
         onSubmit={handleSubmit}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Flame, Trophy } from "lucide-react";
+import { Check, Flame } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems } from "@/lib/queries/pantry";
@@ -29,15 +29,9 @@ export default function AchievementsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <Trophy className="size-6 text-accent" />
-          הישגים
-        </h1>
-        <p className="text-sm text-muted">
-          {unlockedCount} מתוך {achievements.length} הישגים נפתחו
-        </p>
-      </div>
+      <p className="text-sm text-muted">
+        {unlockedCount} מתוך {achievements.length} הישגים נפתחו
+      </p>
 
       {streak > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3">

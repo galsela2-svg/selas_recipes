@@ -147,11 +147,6 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">הגדרות</h1>
-        <p className="text-sm text-muted">התאימו את האפליקציה בדיוק כמו שנוח לכם.</p>
-      </div>
-
       <SettingsSection title="מראה">
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="mb-3 text-sm font-medium text-foreground">ערכת נושא</p>
