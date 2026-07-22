@@ -2,16 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useCreateRecipe } from "@/lib/queries/recipes";
+import { useToast } from "@/components/providers/toast-provider";
 import { RecipeForm } from "@/components/recipes/recipe-form";
 import type { RecipeInput } from "@/lib/types";
 
 export default function NewRecipePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { mutate, isPending } = useCreateRecipe();
 
   function handleSubmit(input: RecipeInput) {
     mutate(input, {
       onSuccess: (recipe) => {
+        showToast(`"${recipe.title}" נשמר בהצלחה! 🎉`);
         router.push(`/recipes/${recipe.id}`);
       },
     });

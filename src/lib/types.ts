@@ -1,13 +1,35 @@
-export const DIETARY_TAG_OPTIONS = [
-  "דל פחמימות",
-  "ללא גלוטן",
-  "עתיר חלבון",
-  "ללא מוצרי חלב",
-  "טבעוני",
-  "צמחוני",
-  "דל סוכר",
-  "כשר",
-] as const;
+// Curated, structured tags — grouped for display (the picker in the recipe
+// form and the quick-filter panel on the dashboard both render one row per
+// group), but stored flat in `recipes.dietary_tags text[]` since a recipe
+// just needs to match zero or more of these regardless of group.
+export const DIETARY_TAG_GROUPS: { label: string; options: string[] }[] = [
+  {
+    label: "תזונה ואלרגנים",
+    options: [
+      "דל פחמימות",
+      "ללא גלוטן",
+      "עתיר חלבון",
+      "ללא מוצרי חלב",
+      "טבעוני",
+      "צמחוני",
+      "דל סוכר",
+    ],
+  },
+  {
+    label: "כשרות",
+    options: ["בשרי", "חלבי", "פרווה"],
+  },
+  {
+    label: "סוג ארוחה",
+    options: ["ארוחת בוקר", "ארוחת צהריים", "ארוחת ערב", "קינוח"],
+  },
+  {
+    label: "הזדמנות",
+    options: ["לשבת וחג", "מתאים לילדים"],
+  },
+];
+
+export const DIETARY_TAG_OPTIONS = DIETARY_TAG_GROUPS.flatMap((g) => g.options);
 
 export type Recipe = {
   id: string;
@@ -22,6 +44,7 @@ export type Recipe = {
   instructions: string[];
   tags: string[];
   dietary_tags: string[];
+  is_favorite: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;

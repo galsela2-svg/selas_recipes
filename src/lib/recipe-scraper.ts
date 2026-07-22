@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import type { ParsedRecipe } from "@/lib/types";
 
 type JsonLdNode = Record<string, unknown>;
@@ -29,24 +30,100 @@ export class FetchFailedError extends Error {
   }
 }
 
-export async function fetchHtml(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: BROWSER_LIKE_HEADERS,
-    redirect: "follow",
-    signal: AbortSignal.timeout(12_000),
-  });
-
-  if (!response.ok) {
-    if ([401, 402, 403, 429, 451].includes(response.status)) {
-      throw new FetchBlockedError(response.status);
-    }
-    throw new FetchFailedError(response.status);
+// Thrown when a URL (or a redirect target) resolves to a private/internal
+// address — blocks SSRF against internal services and cloud metadata
+// endpoints. Checked by hostname literal AND by resolved DNS address, since
+// a public-looking hostname can still resolve to an internal IP.
+export class SsrfBlockedError extends Error {
+  constructor(hostname: string) {
+    super(`Blocked request to private/internal host: ${hostname}`);
   }
-
-  return response.text();
 }
 
-function stripHtml(value: string): string {
+const BLOCKED_HOSTNAMES = new Set(["localhost", "0.0.0.0", "::1"]);
+
+function isPrivateIPv4(a: number, b: number): boolean {
+  if (a === 127 || a === 10 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+}
+
+function isPrivateIp(address: string, family: number): boolean {
+  if (family === 4) {
+    const [a, b] = address.split(".").map(Number);
+    return isPrivateIPv4(a, b);
+  }
+  const lower = address.toLowerCase();
+  if (lower === "::1") return true;
+  if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique local
+  if (/^fe[89ab]/.test(lower)) return true; // link-local
+  return false;
+}
+
+async function assertPublicHostname(hostname: string): Promise<void> {
+  if (BLOCKED_HOSTNAMES.has(hostname) || hostname.endsWith(".local")) {
+    throw new SsrfBlockedError(hostname);
+  }
+
+  let addresses: { address: string; family: number }[];
+  try {
+    addresses = await lookup(hostname, { all: true });
+  } catch {
+    // DNS resolution failure — let the actual fetch fail naturally instead.
+    return;
+  }
+
+  for (const { address, family } of addresses) {
+    if (isPrivateIp(address, family)) {
+      throw new SsrfBlockedError(hostname);
+    }
+  }
+}
+
+const MAX_REDIRECTS = 5;
+
+// Validates every hop (initial URL and every redirect target) against
+// private/internal addresses before connecting, since a redirect can point
+// anywhere regardless of how trusted the original URL looked.
+export async function fetchHtml(rawUrl: string): Promise<string> {
+  let currentUrl = rawUrl;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const url = new URL(currentUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new SsrfBlockedError(url.hostname);
+    }
+    await assertPublicHostname(url.hostname);
+
+    const response = await fetch(url.toString(), {
+      headers: BROWSER_LIKE_HEADERS,
+      redirect: "manual",
+      signal: AbortSignal.timeout(12_000),
+    });
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location) throw new FetchFailedError(response.status);
+      currentUrl = new URL(location, url).toString();
+      continue;
+    }
+
+    if (!response.ok) {
+      if ([401, 402, 403, 429, 451].includes(response.status)) {
+        throw new FetchBlockedError(response.status);
+      }
+      throw new FetchFailedError(response.status);
+    }
+
+    return response.text();
+  }
+
+  throw new FetchFailedError(310);
+}
+
+export function stripHtml(value: string): string {
   return value
     .replace(/<\/?[a-z][^>]*>/gi, " ")
     .replace(/&nbsp;/g, " ")
@@ -275,4 +352,68 @@ export function parseRecipeFromHtml(
     ingredients,
     instructions,
   };
+}
+
+const NON_RECIPE_PATH_PATTERN =
+  /\/(category|categories|tag|tags|topics?|author|authors|page|search|about|contact|privacy|terms|newsletter|subscribe)(\/|$)/i;
+
+/**
+ * Search results (and pasted links) often land on a hub/roundup page — a
+ * category archive or a "10 best X" listicle — rather than a single
+ * recipe. Those pages rarely carry Recipe JSON-LD themselves, so
+ * parseRecipeFromHtml correctly returns null for them. Instead of giving
+ * up, look for the on-site link whose anchor text best overlaps with the
+ * original search terms — the link a person would actually click from that
+ * hub page to reach a real recipe — and let the caller fetch/parse that
+ * instead.
+ */
+export function findLikelyRecipeLink(
+  html: string,
+  baseUrl: string,
+  queryTerms: string[],
+): string | null {
+  let base: URL;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return null;
+  }
+
+  const significantTerms = queryTerms
+    .map((t) => t.trim().toLowerCase())
+    .filter(
+      (t) => t.length >= 3 && !["מתכון", "מתכונים", "recipe", "recipes"].includes(t),
+    );
+  if (significantTerms.length === 0) return null;
+
+  const anchorRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let bestUrl: string | null = null;
+  let bestScore = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorRegex.exec(html))) {
+    const text = stripHtml(match[2]).toLowerCase();
+    if (!text) continue;
+
+    let url: URL;
+    try {
+      url = new URL(match[1], base);
+    } catch {
+      continue;
+    }
+    if (url.hostname !== base.hostname) continue;
+    if (url.hash || NON_RECIPE_PATH_PATTERN.test(url.pathname)) continue;
+    if (url.toString() === base.toString()) continue;
+
+    const score = significantTerms.reduce(
+      (acc, term) => (text.includes(term) ? acc + 1 : acc),
+      0,
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      bestUrl = url.toString();
+    }
+  }
+
+  return bestScore > 0 ? bestUrl : null;
 }

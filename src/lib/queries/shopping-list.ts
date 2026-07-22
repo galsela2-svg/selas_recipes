@@ -72,11 +72,7 @@ export function useAddShoppingItems() {
 
       if (error) throw error;
 
-      await Promise.all(
-        cleaned.map((name) =>
-          supabase.rpc("record_known_item", { item_name: name }),
-        ),
-      );
+      await supabase.rpc("record_known_items", { item_names: cleaned });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });

@@ -6,17 +6,32 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Dices,
+  Layers,
   ListChecks,
   Loader2,
+  PartyPopper,
   X,
 } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useAddRecipePhoto } from "@/lib/queries/recipe-photos";
+import { useAddCookLog } from "@/lib/queries/cook-logs";
 import { Spinner } from "@/components/ui/spinner";
+import { Confetti } from "@/components/ui/confetti";
 import { InstructionText } from "@/components/recipes/instruction-text";
 import { useSettings } from "@/components/providers/settings-provider";
 import { useWakeLock } from "@/lib/use-wake-lock";
+import { todayIsoDate } from "@/lib/date-utils";
+import { isParallelStep } from "@/lib/parallel-step";
 import { cn } from "@/lib/utils";
+
+const EMOJI_RATINGS = [
+  { emoji: "😞", label: "לא כל כך", rating: 2 },
+  { emoji: "😐", label: "בסדר", rating: 5 },
+  { emoji: "🙂", label: "טוב", rating: 7 },
+  { emoji: "😋", label: "טעים!", rating: 9 },
+  { emoji: "🤩", label: "מושלם!", rating: 10 },
+] as const;
 
 export default function CookingModePage({
   params,
@@ -28,8 +43,11 @@ export default function CookingModePage({
   const [settings] = useSettings();
   const [step, setStep] = useState(0);
   const [showIngredients, setShowIngredients] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const [loggedRating, setLoggedRating] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addPhoto = useAddRecipePhoto();
+  const addLog = useAddCookLog();
 
   useWakeLock(settings.keepScreenAwake);
 
@@ -43,12 +61,69 @@ export default function CookingModePage({
 
   const totalSteps = recipe.instructions.length;
   const currentStep = recipe.instructions[step] ?? "";
+  const nextStep = step < totalSteps - 1 ? recipe.instructions[step + 1] : null;
+  const nextIsParallel = nextStep ? isParallelStep(nextStep) : false;
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     addPhoto.mutate({ recipeId: id, file });
+  }
+
+  function handleQuickRate(rating: number) {
+    setLoggedRating(rating);
+    addLog.mutate({ recipeId: id, cookedOn: todayIsoDate(), rating, notes: null });
+  }
+
+  if (completed) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-center">
+        <Confetti />
+
+        <div className="flex size-20 items-center justify-center rounded-full bg-accent/15 text-accent">
+          <PartyPopper className="size-10" />
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold text-foreground">כל הכבוד, סיימתם לבשל!</h1>
+          <p className="text-muted">איך יצא {recipe.title}?</p>
+        </div>
+
+        {loggedRating === null ? (
+          <div className="flex gap-2">
+            {EMOJI_RATINGS.map(({ emoji, label, rating }) => (
+              <button
+                key={rating}
+                onClick={() => handleQuickRate(rating)}
+                title={label}
+                className="flex size-14 items-center justify-center rounded-full border border-border bg-surface text-3xl transition-transform cursor-pointer active:scale-90 hover:border-accent/50"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-lg font-medium text-accent">הבישול נרשם ביומן שלכם! 🎉</p>
+        )}
+
+        <div className="flex w-full max-w-xs flex-col gap-2 pt-4">
+          <Link
+            href={`/recipes/${id}`}
+            className="flex h-12 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-medium text-accent-foreground transition-colors hover:opacity-90"
+          >
+            חזרה למתכון
+          </Link>
+          <Link
+            href="/roulette"
+            className="flex h-12 items-center justify-center gap-2 rounded-lg border border-border px-6 text-base font-medium text-foreground transition-colors hover:bg-surface-2"
+          >
+            <Dices className="size-4.5" />
+            סבבו את הגלגל למתכון הבא
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -106,6 +181,30 @@ export default function CookingModePage({
                 <InstructionText text={currentStep} />
               </p>
 
+              {nextStep && (
+                <div
+                  className={cn(
+                    "max-w-xl rounded-xl px-4 py-2.5 text-center",
+                    nextIsParallel
+                      ? "border border-accent/40 bg-accent/10"
+                      : "border border-border bg-surface",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "mb-0.5 flex items-center justify-center gap-1.5 text-xs font-medium uppercase tracking-wide",
+                      nextIsParallel ? "text-accent" : "text-muted",
+                    )}
+                  >
+                    {nextIsParallel && <Layers className="size-3.5" />}
+                    {nextIsParallel ? "לעשות במקביל" : "השלב הבא"}
+                  </p>
+                  <p className={cn("text-sm", nextIsParallel ? "text-foreground" : "text-muted")}>
+                    <InstructionText text={nextStep} />
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setStep((s) => Math.max(0, s - 1))}
@@ -127,21 +226,36 @@ export default function CookingModePage({
                   ))}
                 </div>
 
-                <button
-                  onClick={() =>
-                    setStep((s) => Math.min(totalSteps - 1, s + 1))
-                  }
-                  disabled={step === totalSteps - 1}
-                  className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="size-6" />
-                </button>
+                {step === totalSteps - 1 ? (
+                  <button
+                    onClick={() => setCompleted(true)}
+                    className="flex size-14 items-center justify-center rounded-full bg-success text-accent-foreground transition-opacity hover:opacity-90 cursor-pointer"
+                  >
+                    <PartyPopper className="size-6" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setStep((s) => Math.min(totalSteps - 1, s + 1))}
+                    className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity hover:opacity-90 cursor-pointer"
+                  >
+                    <ChevronLeft className="size-6" />
+                  </button>
+                )}
               </div>
             </>
           ) : (
-            <p className="text-lg text-muted">
-              למתכון הזה עדיין אין שלבי הכנה.
-            </p>
+            <div className="flex flex-col items-center gap-6">
+              <p className="text-lg text-muted">
+                למתכון הזה עדיין אין שלבי הכנה.
+              </p>
+              <button
+                onClick={() => setCompleted(true)}
+                className="flex h-12 items-center justify-center gap-2 rounded-lg bg-success px-6 text-base font-medium text-accent-foreground transition-opacity hover:opacity-90 cursor-pointer"
+              >
+                <PartyPopper className="size-4.5" />
+                סיימתי לבשל
+              </button>
+            </div>
           )}
         </main>
 

@@ -18,7 +18,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QuickAddBar } from "@/components/shopping-list/quick-add-bar";
 import { KnownItemsManager } from "@/components/shopping-list/known-items-manager";
+import { AISLE_CATEGORIES, categorizeItem } from "@/lib/aisle-categories";
 import { cn } from "@/lib/utils";
+import type { ShoppingListItem } from "@/lib/types";
 
 export default function ShoppingListPage() {
   const { data: items, isLoading } = useShoppingList();
@@ -67,8 +69,22 @@ export default function ShoppingListPage() {
     submitItem(draft);
   }
 
-  const uncheckedItems = items?.filter((i) => !i.checked) ?? [];
   const checkedItems = items?.filter((i) => i.checked) ?? [];
+
+  const groupedUnchecked = useMemo(() => {
+    const map = new Map<string, ShoppingListItem[]>();
+    for (const item of items ?? []) {
+      if (item.checked) continue;
+      const category = categorizeItem(item.name);
+      const list = map.get(category) ?? [];
+      list.push(item);
+      map.set(category, list);
+    }
+    return AISLE_CATEGORIES.map((category) => ({
+      category,
+      items: map.get(category) ?? [],
+    })).filter((group) => group.items.length > 0);
+  }, [items]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -147,11 +163,18 @@ export default function ShoppingListPage() {
         />
       ) : (
         <div className="space-y-6">
-          <ItemGroup
-            items={uncheckedItems}
-            onToggle={(id, checked) => toggleItem.mutate({ id, checked })}
-            onDelete={(id) => deleteItem.mutate(id)}
-          />
+          {groupedUnchecked.map(({ category, items: categoryItems }) => (
+            <div key={category} className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                {category}
+              </p>
+              <ItemGroup
+                items={categoryItems}
+                onToggle={(id, checked) => toggleItem.mutate({ id, checked })}
+                onDelete={(id) => deleteItem.mutate(id)}
+              />
+            </div>
+          ))}
 
           {checkedItems.length > 0 && (
             <div className="space-y-2">

@@ -4,6 +4,7 @@ import {
   FetchBlockedError,
   extractOgTag,
   fetchHtml,
+  findLikelyRecipeLink,
   parseRecipeFromHtml,
 } from "@/lib/recipe-scraper";
 import { searchWeb } from "@/lib/web-search";
@@ -54,16 +55,27 @@ function isInstagramUrl(raw: string): boolean {
 async function findSimilarRecipeOnline(query: string): Promise<ParsedRecipe | null> {
   let results;
   try {
-    results = await searchWeb(query, 5);
+    results = await searchWeb(query, 6);
   } catch {
     return null;
   }
+
+  const queryTerms = query.split(/\s+/);
 
   for (const result of results) {
     try {
       const html = await fetchHtml(result.url);
       const parsed = parseRecipeFromHtml(html, result.url);
       if (parsed) return parsed;
+
+      // Likely a category/roundup hub page — try the on-site link that best
+      // matches the query, one hop deeper, before giving up on this result.
+      const drillUrl = findLikelyRecipeLink(html, result.url, queryTerms);
+      if (drillUrl) {
+        const drillHtml = await fetchHtml(drillUrl);
+        const drillParsed = parseRecipeFromHtml(drillHtml, drillUrl);
+        if (drillParsed) return drillParsed;
+      }
     } catch {
       continue;
     }

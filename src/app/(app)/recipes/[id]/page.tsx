@@ -7,13 +7,14 @@ import {
   ChefHat,
   Clock,
   ExternalLink,
+  Heart,
   ImageOff,
   Pencil,
   ShoppingCart,
   Trash2,
   Users,
 } from "lucide-react";
-import { useDeleteRecipe, useRecipe } from "@/lib/queries/recipes";
+import { useDeleteRecipe, useRecipe, useToggleFavorite } from "@/lib/queries/recipes";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -45,6 +46,7 @@ export default function RecipeDetailPage({
   const { data: pantryItems } = usePantryItems();
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
+  const toggleFavorite = useToggleFavorite();
   const [settings] = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [added, setAdded] = useState(false);
@@ -96,7 +98,7 @@ export default function RecipeDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-surface-2">
+      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-sm">
         {recipe.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -109,11 +111,24 @@ export default function RecipeDetailPage({
             <ImageOff className="size-10" strokeWidth={1.5} />
           </div>
         )}
+
+        <button
+          onClick={() =>
+            toggleFavorite.mutate({ id: recipe.id, isFavorite: !recipe.is_favorite })
+          }
+          className="absolute end-3 top-3 flex size-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm cursor-pointer transition-transform active:scale-90"
+        >
+          <Heart
+            className={
+              recipe.is_favorite ? "size-5 fill-danger text-danger" : "size-5 text-white"
+            }
+          />
+        </button>
       </div>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="font-serif text-3xl font-bold leading-tight text-foreground">
             {recipe.title}
           </h1>
           <div className="flex flex-wrap gap-2">

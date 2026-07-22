@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { DIETARY_TAG_OPTIONS, type ParsedRecipe, type Recipe, type RecipeInput } from "@/lib/types";
+import { Pencil } from "lucide-react";
+import { DIETARY_TAG_GROUPS, type ParsedRecipe, type Recipe, type RecipeInput } from "@/lib/types";
 import { linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { TagInput } from "@/components/recipes/tag-input";
 import { ParseUrlPanel } from "@/components/recipes/parse-url-panel";
 import { IngredientListInput } from "@/components/recipes/ingredient-list-input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 
 // Picks up a recipe handed off from the web-search results page, if any.
 // Reading + clearing sessionStorage here (inside a lazy useState
@@ -38,6 +40,13 @@ export function RecipeForm({
   submitting?: boolean;
 }) {
   const [pendingImport] = useState(() => readPendingImport(Boolean(initialRecipe)));
+  // New, empty recipes start collapsed to just the import panel — most
+  // recipes here come from pasting an Instagram/recipe link, not typing.
+  // Editing an existing recipe, or already having parsed/imported data,
+  // shows the full form immediately.
+  const [manualExpanded, setManualExpanded] = useState(
+    () => Boolean(initialRecipe) || Boolean(pendingImport),
+  );
 
   const [title, setTitle] = useState(
     initialRecipe?.title ?? pendingImport?.title ?? "",
@@ -81,6 +90,7 @@ export function RecipeForm({
     setServings(parsed.servings?.toString() ?? "");
     setIngredients(parsed.ingredients);
     setInstructionsText(parsed.instructions.join("\n"));
+    setManualExpanded(true);
   }
 
   function handleSubmit(e: FormEvent) {
@@ -111,6 +121,18 @@ export function RecipeForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {!initialRecipe && <ParseUrlPanel onParsed={applyParsedRecipe} />}
 
+      {!manualExpanded && (
+        <button
+          type="button"
+          onClick={() => setManualExpanded(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-3 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-foreground cursor-pointer"
+        >
+          <Pencil className="size-4" />
+          או הוסיפו מתכון ידנית
+        </button>
+      )}
+
+      <div className={manualExpanded ? "space-y-6" : "hidden"}>
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-foreground">כותרת</label>
         <Input
@@ -151,37 +173,19 @@ export function RecipeForm({
           <label className="text-sm font-medium text-foreground">
             הכנה (דק׳)
           </label>
-          <Input
-            type="number"
-            dir="ltr"
-            min={0}
-            value={prepTime}
-            onChange={(e) => setPrepTime(e.target.value)}
-          />
+          <NumberStepper value={prepTime} onChange={setPrepTime} step={5} />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
             בישול (דק׳)
           </label>
-          <Input
-            type="number"
-            dir="ltr"
-            min={0}
-            value={cookTime}
-            onChange={(e) => setCookTime(e.target.value)}
-          />
+          <NumberStepper value={cookTime} onChange={setCookTime} step={5} />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">
             מנות
           </label>
-          <Input
-            type="number"
-            dir="ltr"
-            min={0}
-            value={servings}
-            onChange={(e) => setServings(e.target.value)}
-          />
+          <NumberStepper value={servings} onChange={setServings} min={1} />
         </div>
       </div>
 
@@ -190,21 +194,23 @@ export function RecipeForm({
         <TagInput value={tags} onChange={setTags} />
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          תזונה ואלרגנים
-        </label>
-        <div className="flex flex-wrap gap-1.5">
-          {DIETARY_TAG_OPTIONS.map((tag) => (
-            <Badge
-              key={tag}
-              active={dietaryTags.includes(tag)}
-              onClick={() => toggleDietaryTag(tag)}
-            >
-              {tag}
-            </Badge>
-          ))}
-        </div>
+      <div className="space-y-3">
+        {DIETARY_TAG_GROUPS.map((group) => (
+          <div key={group.label} className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">{group.label}</label>
+            <div className="flex flex-wrap gap-1.5">
+              {group.options.map((tag) => (
+                <Badge
+                  key={tag}
+                  active={dietaryTags.includes(tag)}
+                  onClick={() => toggleDietaryTag(tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="space-y-1.5">
@@ -247,6 +253,7 @@ export function RecipeForm({
         <Button type="submit" size="lg" loading={submitting}>
           {submitLabel}
         </Button>
+      </div>
       </div>
     </form>
   );

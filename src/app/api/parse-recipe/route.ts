@@ -2,43 +2,32 @@ import { NextResponse } from "next/server";
 import {
   FetchBlockedError,
   FetchFailedError,
+  SsrfBlockedError,
+  extractOgTag,
   fetchHtml,
+  findLikelyRecipeLink,
   parseRecipeFromHtml,
 } from "@/lib/recipe-scraper";
+import { createClient } from "@/lib/supabase/server";
 
-const BLOCKED_HOSTNAMES = new Set(["localhost", "0.0.0.0", "::1"]);
-
-function isPrivateHostname(hostname: string): boolean {
-  if (BLOCKED_HOSTNAMES.has(hostname)) return true;
-
-  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4) {
-    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-    if (a === 127 || a === 10 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    return false;
-  }
-
-  return hostname.endsWith(".local");
-}
-
-function validateUrl(raw: string): URL | null {
-  let url: URL;
+function parseUrl(raw: string): URL | null {
   try {
-    url = new URL(raw);
+    const url = new URL(raw);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
   } catch {
     return null;
   }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  if (isPrivateHostname(url.hostname)) return null;
-
-  return url;
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "יש להתחבר." }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
   const rawUrl = typeof body?.url === "string" ? body.url.trim() : "";
 
@@ -46,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "יש להזין כתובת URL." }, { status: 400 });
   }
 
-  const url = validateUrl(rawUrl);
+  const url = parseUrl(rawUrl);
   if (!url) {
     return NextResponse.json({ error: "כתובת ה-URL אינה תקינה." }, { status: 400 });
   }
@@ -55,6 +44,9 @@ export async function POST(request: Request) {
   try {
     html = await fetchHtml(url.toString());
   } catch (err) {
+    if (err instanceof SsrfBlockedError) {
+      return NextResponse.json({ error: "כתובת ה-URL אינה נתמכת." }, { status: 400 });
+    }
     if (err instanceof FetchBlockedError) {
       return NextResponse.json(
         {
@@ -76,7 +68,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const recipe = parseRecipeFromHtml(html, url.toString());
+  let recipe = parseRecipeFromHtml(html, url.toString());
+
+  // This page might be a category/roundup hub rather than a single recipe —
+  // try the on-site link that best matches the hub page's own title before
+  // giving up, the way a person would click through to an actual recipe.
+  if (!recipe) {
+    const hubTitle = extractOgTag(html, "og:title");
+    const drillUrl = hubTitle
+      ? findLikelyRecipeLink(html, url.toString(), hubTitle.split(/\s+/))
+      : null;
+
+    if (drillUrl) {
+      try {
+        const drillHtml = await fetchHtml(drillUrl);
+        recipe = parseRecipeFromHtml(drillHtml, drillUrl);
+      } catch {
+        // Fall through to the "no recipe data" error below.
+      }
+    }
+  }
 
   if (!recipe) {
     return NextResponse.json(

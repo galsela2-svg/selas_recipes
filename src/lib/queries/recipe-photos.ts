@@ -8,7 +8,25 @@ const BUCKET = "recipe-photos";
 
 export const recipePhotoKeys = {
   forRecipe: (recipeId: string) => ["recipe-photos", recipeId] as const,
+  totalCount: ["recipe-photos", "total-count"] as const,
 };
+
+async function fetchTotalPhotoCount(): Promise<number> {
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from("recipe_photos")
+    .select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Total "real result" photos across every recipe — used for achievements. */
+export function useTotalPhotoCount() {
+  return useQuery({
+    queryKey: recipePhotoKeys.totalCount,
+    queryFn: fetchTotalPhotoCount,
+  });
+}
 
 function storagePathFromPublicUrl(url: string): string | null {
   const marker = `/object/public/${BUCKET}/`;

@@ -5,11 +5,14 @@ import { Star, Trash2 } from "lucide-react";
 import { useAddCookLog, useCookLogs, useDeleteCookLog } from "@/lib/queries/cook-logs";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { addDaysIso, todayIsoDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const QUICK_DATE_OPTIONS = [
+  { label: "היום", offset: 0 },
+  { label: "אתמול", offset: -1 },
+  { label: "שלשום", offset: -2 },
+];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("he-IL", {
@@ -61,6 +64,26 @@ export function CookLogSection({ recipeId }: { recipeId: string }) {
         >
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">תאריך בישול</label>
+            <div className="flex gap-1.5">
+              {QUICK_DATE_OPTIONS.map(({ label, offset }) => {
+                const iso = addDaysIso(todayIsoDate(), offset);
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setCookedOn(iso)}
+                    className={cn(
+                      "flex-1 rounded-lg border px-2 py-2 text-sm font-medium cursor-pointer transition-colors",
+                      cookedOn === iso
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-border text-muted hover:border-accent/50",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             <Input
               type="date"
               dir="ltr"

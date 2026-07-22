@@ -34,9 +34,28 @@ create table if not exists public.recipes (
 alter table public.recipes
   add column if not exists dietary_tags text[] not null default '{}'::text[];
 
+-- Shared household favorite flag (one flag per recipe, not per-user — same
+-- sharing model as the rest of this app).
+alter table public.recipes
+  add column if not exists is_favorite boolean not null default false;
+
 create index if not exists recipes_created_at_idx on public.recipes (created_at desc);
 create index if not exists recipes_tags_idx on public.recipes using gin (tags);
 create index if not exists recipes_dietary_tags_idx on public.recipes using gin (dietary_tags);
+
+-- Non-negative guards on user-entered numeric fields (the client already
+-- enforces min={0}, but that's not a substitute for a DB-level constraint).
+alter table public.recipes drop constraint if exists recipes_prep_time_minutes_check;
+alter table public.recipes add constraint recipes_prep_time_minutes_check
+  check (prep_time_minutes is null or prep_time_minutes >= 0);
+
+alter table public.recipes drop constraint if exists recipes_cook_time_minutes_check;
+alter table public.recipes add constraint recipes_cook_time_minutes_check
+  check (cook_time_minutes is null or cook_time_minutes >= 0);
+
+alter table public.recipes drop constraint if exists recipes_servings_check;
+alter table public.recipes add constraint recipes_servings_check
+  check (servings is null or servings >= 0);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -95,6 +114,8 @@ create table if not exists public.shopping_list_items (
 
 create index if not exists shopping_list_items_created_at_idx
   on public.shopping_list_items (created_at);
+create index if not exists shopping_list_items_checked_idx
+  on public.shopping_list_items (checked);
 
 alter table public.shopping_list_items enable row level security;
 
@@ -194,6 +215,33 @@ end;
 $$;
 
 grant execute on function public.record_known_item(text) to authenticated;
+
+-- Batched variant of record_known_item, for callers recording many ingredient
+-- names at once (a recipe save, a bulk shopping-list add) — one round trip
+-- instead of one RPC call per item.
+create or replace function public.record_known_items(item_names text[])
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  item_name text;
+begin
+  foreach item_name in array item_names loop
+    if item_name is not null and btrim(item_name) <> '' then
+      insert into public.known_items (name, use_count, updated_at)
+      values (btrim(item_name), 1, now())
+      on conflict (name)
+      do update set
+        use_count = public.known_items.use_count + 1,
+        updated_at = now();
+    end if;
+  end loop;
+end;
+$$;
+
+grant execute on function public.record_known_items(text[]) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- recipe_photos: user-taken "real result" photos, kept separate from the
@@ -314,6 +362,10 @@ create policy "Authenticated users can delete cook logs"
   on public.cook_logs for delete
   to authenticated
   using (true);
+
+-- meal_plan_entries (weekly meal planner) was removed as an unwanted
+-- feature. Drops it if a previous schema run created it on this database.
+drop table if exists public.meal_plan_entries cascade;
 
 -- ---------------------------------------------------------------------------
 -- Storage: a public bucket for in-progress cooking photos. Public read

@@ -12,12 +12,9 @@ import type { Recipe, RecipeInput } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
 
 async function recordIngredientHistory(ingredients: string[]) {
+  if (ingredients.length === 0) return;
   const supabase = createClient();
-  await Promise.all(
-    ingredients.map((name) =>
-      supabase.rpc("record_known_item", { item_name: name }),
-    ),
-  );
+  await supabase.rpc("record_known_items", { item_names: ingredients });
 }
 
 export const recipeKeys = {
@@ -108,6 +105,47 @@ export function useUpdateRecipe() {
       queryClient.invalidateQueries({ queryKey: recipeKeys.all });
       queryClient.invalidateQueries({ queryKey: recipeKeys.detail(data.id) });
       queryClient.invalidateQueries({ queryKey: knownItemKeys.all });
+    },
+  });
+}
+
+export function useToggleFavorite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, isFavorite }: { id: string; isFavorite: boolean }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("recipes")
+        .update({ is_favorite: isFavorite })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    // Optimistic update so the heart flips instantly on tap.
+    onMutate: async ({ id, isFavorite }) => {
+      await queryClient.cancelQueries({ queryKey: recipeKeys.all });
+      await queryClient.cancelQueries({ queryKey: recipeKeys.detail(id) });
+
+      const previousList = queryClient.getQueryData<Recipe[]>(recipeKeys.all);
+      const previousDetail = queryClient.getQueryData<Recipe>(recipeKeys.detail(id));
+
+      queryClient.setQueryData<Recipe[]>(recipeKeys.all, (old) =>
+        old?.map((r) => (r.id === id ? { ...r, is_favorite: isFavorite } : r)),
+      );
+      queryClient.setQueryData<Recipe>(recipeKeys.detail(id), (old) =>
+        old ? { ...old, is_favorite: isFavorite } : old,
+      );
+
+      return { previousList, previousDetail, id };
+    },
+    onError: (_err, _vars, context) => {
+      if (!context) return;
+      queryClient.setQueryData(recipeKeys.all, context.previousList);
+      queryClient.setQueryData(recipeKeys.detail(context.id), context.previousDetail);
+    },
+    onSettled: (_data, _error, { id }) => {
+      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
+      queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) });
     },
   });
 }

@@ -10,11 +10,9 @@ export function TopHeader({ userEmail }: { userEmail: string | null }) {
         height: "calc(3.5rem + env(safe-area-inset-top))",
       }}
     >
-      <div className="flex items-center gap-2">
-        <div className="flex size-7 items-center justify-center rounded-lg bg-accent/15 text-accent">
-          <ChefHat className="size-4" />
-        </div>
-        <span className="font-semibold text-foreground">מתכונים</span>
+      <div className="flex items-center gap-1.5">
+        <ChefHat className="size-4.5 text-accent" strokeWidth={1.75} />
+        <span className="font-serif text-lg font-bold text-foreground">מתכונים שלנו</span>
       </div>
 
       <Link

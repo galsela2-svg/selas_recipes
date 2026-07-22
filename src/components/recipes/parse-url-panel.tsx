@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Clapperboard, Sparkles } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { Camera, Clapperboard, Link2 } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,18 @@ function isInstagramUrl(raw: string): boolean {
   }
 }
 
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ParseUrlPanel({
   onParsed,
 }: {
@@ -21,8 +33,10 @@ export function ParseUrlPanel({
 }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -75,31 +89,83 @@ export function ParseUrlPanel({
     }
   }
 
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setPhotoLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const base64 = await readFileAsBase64(file);
+      const res = await fetch("/api/parse-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, media_type: file.type }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לזהות מתכון בתמונה.");
+
+      const parsed = body as ParsedRecipe;
+      onParsed(parsed);
+      setNotice("סרקנו את התמונה וחילצנו מתכון — כדאי לעבור עליו ולוודא שהוא מדויק.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
+
   return (
-    <div className="rounded-xl border border-dashed border-accent/40 bg-accent/5 p-4">
-      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-        <Sparkles className="size-4 text-accent" />
-        פענוח מקישור
+    <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-5 shadow-sm">
+      <div className="mb-3.5 flex items-center gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white shadow-sm">
+          <Clapperboard className="size-5" />
+        </div>
+        <div>
+          <p className="font-serif text-lg font-bold leading-tight text-foreground">
+            ראיתם מתכון ברילז?
+          </p>
+          <p className="text-xs text-muted">הדביקו את הקישור ואנחנו נהפוך אותו למתכון שמור</p>
+        </div>
       </div>
-      <p className="mb-3 text-xs text-muted">
-        הדביקו קישור למתכון (או ריל אינסטגרם) ואנחנו נשלוף עבורכם את הפרטים לבדיקה.
-      </p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
         <Input
           type="url"
           dir="ltr"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com/recipe או instagram.com/reel/..."
-          className="flex-1"
+          placeholder="instagram.com/reel/... או קישור לכל אתר מתכונים"
         />
-        <Button type="submit" variant="secondary" loading={loading}>
-          {isInstagramUrl(url) ? <Clapperboard className="size-4" /> : null}
-          פענוח
+        <Button type="submit" size="lg" className="w-full" loading={loading}>
+          <Link2 className="size-4" />
+          פענוח המתכון
         </Button>
       </form>
-      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
-      {notice && <p className="mt-2 text-xs text-accent">{notice}</p>}
+
+      <button
+        type="button"
+        onClick={() => photoInputRef.current?.click()}
+        disabled={photoLoading}
+        className="mx-auto mt-3 flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer disabled:opacity-50"
+      >
+        <Camera className="size-3.5" />
+        {photoLoading ? "סורק תמונה..." : "או צלמו עמוד מספר בישול / כרטיסיה"}
+      </button>
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoChange}
+        className="hidden"
+      />
+
+      {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+      {notice && <p className="mt-3 text-xs text-accent">{notice}</p>}
     </div>
   );
 }
