@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { Camera, Clapperboard, Link2 } from "lucide-react";
+import { Camera, Clapperboard, Link2, NotebookPen } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 
 function isInstagramUrl(raw: string): boolean {
   try {
@@ -37,6 +37,10 @@ export function ParseUrlPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textDraft, setTextDraft] = useState("");
+  const [textLoading, setTextLoading] = useState(false);
 
   async function handleSubmit() {
     const trimmedUrl = url.trim();
@@ -117,6 +121,35 @@ export function ParseUrlPanel({
     }
   }
 
+  async function handleTextSubmit() {
+    const trimmed = textDraft.trim();
+    if (!trimmed) return;
+
+    setTextLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/parse-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לארגן את המתכון.");
+
+      const parsed = body as ParsedRecipe;
+      onParsed(parsed);
+      setNotice("ארגנו את המתכון לפורמט — כדאי לעבור עליו ולוודא שהוא מדויק.");
+      setTextDraft("");
+      setShowTextInput(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setTextLoading(false);
+    }
+  }
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-5 shadow-sm">
       <div className="mb-3.5 flex items-center gap-3">
@@ -151,15 +184,25 @@ export function ParseUrlPanel({
         </Button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => photoInputRef.current?.click()}
-        disabled={photoLoading}
-        className="mx-auto mt-3 flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer disabled:opacity-50"
-      >
-        <Camera className="size-3.5" />
-        {photoLoading ? "סורק תמונה..." : "או צלמו עמוד מספר בישול / כרטיסיה"}
-      </button>
+      <div className="mt-3 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoLoading}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer disabled:opacity-50"
+        >
+          <Camera className="size-3.5" />
+          {photoLoading ? "סורק תמונה..." : "צלמו עמוד מספר בישול"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTextInput((prev) => !prev)}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer"
+        >
+          <NotebookPen className="size-3.5" />
+          הדביקו מתכון כטקסט
+        </button>
+      </div>
       <input
         ref={photoInputRef}
         type="file"
@@ -168,6 +211,27 @@ export function ParseUrlPanel({
         onChange={handlePhotoChange}
         className="hidden"
       />
+
+      {showTextInput && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+          <Textarea
+            value={textDraft}
+            onChange={(e) => setTextDraft(e.target.value)}
+            placeholder={"הדביקו כאן מתכון שלם כטקסט חופשי (מהודעה, מסמך וכו') —\nואנחנו נסדר אותו לכותרת, מרכיבים ושלבי הכנה."}
+            rows={6}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            loading={textLoading}
+            onClick={handleTextSubmit}
+            disabled={!textDraft.trim()}
+          >
+            <NotebookPen className="size-4" />
+            סידור המתכון
+          </Button>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
       {notice && <p className="mt-3 text-xs text-accent">{notice}</p>}
