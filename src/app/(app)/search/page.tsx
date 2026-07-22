@@ -16,41 +16,71 @@ import { EmptyState } from "@/components/ui/empty-state";
 type WebSearchResult = { title: string; url: string; snippet: string };
 type SearchResponse = { recipes: ParsedRecipe[]; links: WebSearchResult[] };
 
-const TOKEN_GROUPS: { label: string; tokens: string[] }[] = [
+type Token = { emoji: string; label: string };
+
+const TOKEN_GROUPS: { label: string; tokens: Token[] }[] = [
   {
     label: "סוג מנה",
-    tokens: ["עוגות", "פסטה", "מרקים", "סלטים", "עוף", "קינוחים", "צמחוני", "מהיר וקל"],
+    tokens: [
+      { emoji: "🍰", label: "עוגות" },
+      { emoji: "🍝", label: "פסטה" },
+      { emoji: "🍲", label: "מרקים" },
+      { emoji: "🥗", label: "סלטים" },
+      { emoji: "🍗", label: "עוף" },
+      { emoji: "🍨", label: "קינוחים" },
+      { emoji: "🥦", label: "צמחוני" },
+      { emoji: "⚡", label: "מהיר וקל" },
+    ],
   },
   {
+    // Food-based icons only — a cuisine is represented by a dish, not by a
+    // caricature of a person in ethnic/religious dress.
     label: "סגנון אוכל",
     tokens: [
-      "איטלקי",
-      "אסייתי",
-      "אמריקאי",
-      "מקסיקני",
-      "הודי",
-      "תאילנדי",
-      "יווני",
-      "מרוקאי",
-      "צרפתי",
-      "מזרח תיכוני",
+      { emoji: "🍕", label: "איטלקי" },
+      { emoji: "🥢", label: "אסייתי" },
+      { emoji: "🍔", label: "אמריקאי" },
+      { emoji: "🌮", label: "מקסיקני" },
+      { emoji: "🍛", label: "הודי" },
+      { emoji: "🍜", label: "תאילנדי" },
+      { emoji: "🥙", label: "יווני" },
+      { emoji: "🫓", label: "מרוקאי" },
+      { emoji: "🥐", label: "צרפתי" },
+      { emoji: "🧆", label: "מזרח תיכוני" },
     ],
   },
   {
     label: "זמן הכנה",
-    tokens: ["מהיר", "תוך שעה", "בישול איטי"],
+    tokens: [
+      { emoji: "⏱️", label: "מהיר" },
+      { emoji: "🕐", label: "תוך שעה" },
+      { emoji: "⏳", label: "בישול איטי" },
+    ],
   },
   {
     label: "רמת קושי",
-    tokens: ["קל להכנה", "רמת קושי בינונית", "מתכון מאתגר"],
+    tokens: [
+      { emoji: "😌", label: "קל להכנה" },
+      { emoji: "🤔", label: "רמת קושי בינונית" },
+      { emoji: "💪", label: "מתכון מאתגר" },
+    ],
   },
   {
     label: "כשרות",
-    tokens: ["בשרי", "חלבי", "פרווה"],
+    tokens: [
+      { emoji: "🥩", label: "בשרי" },
+      { emoji: "🧀", label: "חלבי" },
+      { emoji: "🥬", label: "פרווה" },
+    ],
   },
   {
     label: "סוג ארוחה",
-    tokens: ["ארוחת בוקר", "ארוחת צהריים", "ארוחת ערב", "קינוח"],
+    tokens: [
+      { emoji: "🍳", label: "ארוחת בוקר" },
+      { emoji: "🥙", label: "ארוחת צהריים" },
+      { emoji: "🍽️", label: "ארוחת ערב" },
+      { emoji: "🍰", label: "קינוח" },
+    ],
   },
 ];
 
@@ -231,23 +261,24 @@ export default function SearchPage() {
         </Button>
       </form>
 
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {TOKEN_GROUPS.map((group) => (
           <div key={group.label} className="space-y-1.5">
             <p className="text-xs font-medium text-muted">{group.label}</p>
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5">
-              {group.tokens.map((token) => (
+              {group.tokens.map(({ emoji, label }) => (
                 <button
-                  key={token}
-                  onClick={() => toggleToken(token)}
+                  key={label}
+                  onClick={() => toggleToken(label)}
                   className={
-                    "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors cursor-pointer " +
-                    (isTokenActive(token)
+                    "flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer " +
+                    (isTokenActive(label)
                       ? "border-accent bg-accent/15 text-accent"
                       : "border-border bg-surface text-muted hover:border-accent/50 hover:text-foreground")
                   }
                 >
-                  {token}
+                  <span className="text-lg leading-none">{emoji}</span>
+                  {label}
                 </button>
               ))}
             </div>
