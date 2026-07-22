@@ -52,6 +52,19 @@ function isInstagramUrl(raw: string): boolean {
   }
 }
 
+// A real post photo is served from a per-post "scontent" CDN subdomain.
+// When Instagram detects a non-logged-in scraper, it serves a generic
+// login-wall/promo graphic instead — from a different, generic host — which
+// would otherwise get saved as the recipe's cover photo.
+function isRealInstagramPostImage(raw: string): boolean {
+  try {
+    const host = new URL(raw).hostname;
+    return /^scontent[.-]/.test(host) && /(cdninstagram\.com|fbcdn\.net)$/.test(host);
+  } catch {
+    return false;
+  }
+}
+
 async function findSimilarRecipeOnline(query: string): Promise<ParsedRecipe | null> {
   let results;
   try {
@@ -107,7 +120,8 @@ export async function POST(request: Request) {
     const html = await fetchHtml(url);
     caption = extractOgTag(html, "og:description") ?? "";
     igTitle = extractOgTag(html, "og:title") ?? "";
-    image = extractOgTag(html, "og:image");
+    const ogImage = extractOgTag(html, "og:image");
+    image = ogImage && isRealInstagramPostImage(ogImage) ? ogImage : null;
   } catch (err) {
     // Instagram often blocks non-browser requests entirely. We can still try
     // the fallback search using whatever text is in the URL, but there's
@@ -163,7 +177,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "פענוח מאינסטגרם דורש הגדרת ANTHROPIC_API_KEY בקובץ .env.local בצד השרת.",
+            "פענוח מאינסטגרם דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
         },
         { status: 500 },
       );

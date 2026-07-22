@@ -26,8 +26,8 @@ export type AppSettings = {
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  theme: "dark",
-  accentId: "amber",
+  theme: "light",
+  accentId: "rose",
   defaultUnitSystem: "metric",
   keepScreenAwake: true,
   timerSoundEnabled: true,
@@ -103,4 +103,4 @@ export function applyThemeAndAccent(settings: AppSettings) {
  * far less jarring than a full light/dark flash. */
 export const THEME_INIT_SCRIPT = `(function(){try{var raw=localStorage.getItem(${JSON.stringify(
   SETTINGS_STORAGE_KEY,
-)});var s=raw?JSON.parse(raw):{};var theme=s.theme||"dark";var resolved=theme==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):theme;var root=document.documentElement;root.classList.remove("light","dark");root.classList.add(resolved);root.style.colorScheme=resolved;}catch(e){}})();`;
+)});var s=raw?JSON.parse(raw):{};var theme=s.theme||"light";var resolved=theme==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):theme;var root=document.documentElement;root.classList.remove("light","dark");root.classList.add(resolved);root.style.colorScheme=resolved;}catch(e){}})();`;

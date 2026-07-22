@@ -1,13 +1,14 @@
 "use client";
 
+import { BookOpen, Dessert, EggFried, Sandwich, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import type { Recipe } from "@/lib/types";
 
-const MEAL_TYPE_SECTIONS: { tag: string; emoji: string; label: string }[] = [
-  { tag: "ארוחת בוקר", emoji: "🍳", label: "ארוחת בוקר" },
-  { tag: "ארוחת צהריים", emoji: "🍲", label: "ארוחת צהריים" },
-  { tag: "ארוחת ערב", emoji: "🍽️", label: "ארוחת ערב" },
-  { tag: "קינוח", emoji: "🍰", label: "קינוחים" },
+const MEAL_TYPE_SECTIONS: { tag: string; icon: LucideIcon; label: string }[] = [
+  { tag: "ארוחת בוקר", icon: EggFried, label: "ארוחת בוקר" },
+  { tag: "ארוחת צהריים", icon: Sandwich, label: "ארוחת צהריים" },
+  { tag: "ארוחת ערב", icon: UtensilsCrossed, label: "ארוחת ערב" },
+  { tag: "קינוח", icon: Dessert, label: "קינוחים" },
 ];
 
 /**
@@ -29,8 +30,9 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
     <div className="space-y-6">
       {sections.map((section) => (
         <div key={section.tag} className="space-y-3">
-          <p className="font-serif text-lg font-bold text-foreground">
-            {section.emoji} {section.label}
+          <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
+            <section.icon className="size-5 text-accent" />
+            {section.label}
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {section.recipes.map((recipe) => (
@@ -42,7 +44,10 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
 
       {rest.length > 0 && (
         <div className="space-y-3">
-          <p className="font-serif text-lg font-bold text-foreground">📖 מתכונים נוספים</p>
+          <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
+            <BookOpen className="size-5 text-accent" />
+            מתכונים נוספים
+          </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {rest.map((recipe) => (
               <RecipeCard key={recipe.id} recipe={recipe} />

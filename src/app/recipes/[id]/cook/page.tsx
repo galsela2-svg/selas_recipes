@@ -7,11 +7,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Dices,
+  Frown,
   Layers,
   ListChecks,
   Loader2,
+  Meh,
   PartyPopper,
+  Smile,
+  SmilePlus,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useAddRecipePhoto } from "@/lib/queries/recipe-photos";
@@ -25,13 +30,13 @@ import { todayIsoDate } from "@/lib/date-utils";
 import { isParallelStep } from "@/lib/parallel-step";
 import { cn } from "@/lib/utils";
 
-const EMOJI_RATINGS = [
-  { emoji: "😞", label: "לא כל כך", rating: 2 },
-  { emoji: "😐", label: "בסדר", rating: 5 },
-  { emoji: "🙂", label: "טוב", rating: 7 },
-  { emoji: "😋", label: "טעים!", rating: 9 },
-  { emoji: "🤩", label: "מושלם!", rating: 10 },
-] as const;
+const EMOJI_RATINGS: { icon: LucideIcon; label: string; rating: number }[] = [
+  { icon: Frown, label: "לא כל כך", rating: 2 },
+  { icon: Meh, label: "בסדר", rating: 5 },
+  { icon: Smile, label: "טוב", rating: 7 },
+  { icon: SmilePlus, label: "טעים!", rating: 9 },
+  { icon: PartyPopper, label: "מושלם!", rating: 10 },
+];
 
 export default function CookingModePage({
   params,
@@ -92,19 +97,19 @@ export default function CookingModePage({
 
         {loggedRating === null ? (
           <div className="flex gap-2">
-            {EMOJI_RATINGS.map(({ emoji, label, rating }) => (
+            {EMOJI_RATINGS.map(({ icon: Icon, label, rating }) => (
               <button
                 key={rating}
                 onClick={() => handleQuickRate(rating)}
                 title={label}
-                className="flex size-14 items-center justify-center rounded-full border border-border bg-surface text-3xl transition-transform cursor-pointer active:scale-90 hover:border-accent/50"
+                className="flex size-14 items-center justify-center rounded-full border border-border bg-surface text-muted transition-transform cursor-pointer active:scale-90 hover:border-accent/50 hover:text-accent"
               >
-                {emoji}
+                <Icon className="size-7" strokeWidth={1.75} />
               </button>
             ))}
           </div>
         ) : (
-          <p className="text-lg font-medium text-accent">הבישול נרשם ביומן שלכם! 🎉</p>
+          <p className="text-lg font-medium text-accent">הבישול נרשם ביומן שלכם!</p>
         )}
 
         <div className="flex w-full max-w-xs flex-col gap-2 pt-4">

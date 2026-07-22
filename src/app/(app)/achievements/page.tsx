@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, Trophy } from "lucide-react";
+import { Check, Flame, Trophy } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems } from "@/lib/queries/pantry";
@@ -62,9 +62,10 @@ export default function AchievementsPage() {
                 : "border-border bg-surface opacity-60",
             )}
           >
-            <span className="text-3xl" style={{ filter: a.unlocked ? "none" : "grayscale(1)" }}>
-              {a.emoji}
-            </span>
+            <a.icon
+              className={cn("size-8", a.unlocked ? "text-accent" : "text-muted")}
+              strokeWidth={1.75}
+            />
             <p className="text-sm font-semibold text-foreground">{a.title}</p>
             <p className="text-xs text-muted">{a.description}</p>
             {!a.unlocked && (
@@ -75,8 +76,15 @@ export default function AchievementsPage() {
                 />
               </div>
             )}
-            <p className="text-[11px] text-muted">
-              {a.unlocked ? "פתוח ✓" : `${a.current}/${a.target}`}
+            <p className="flex items-center gap-1 text-[11px] text-muted">
+              {a.unlocked ? (
+                <>
+                  <Check className="size-3" />
+                  פתוח
+                </>
+              ) : (
+                `${a.current}/${a.target}`
+              )}
             </p>
           </div>
         ))}

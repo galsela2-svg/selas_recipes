@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { searchWeb, type WebSearchResult } from "@/lib/web-search";
 import { fetchHtml, findLikelyRecipeLink, parseRecipeFromHtml } from "@/lib/recipe-scraper";
+import { contradictsRequirements, extractRequirements } from "@/lib/dietary-classifier";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,6 +78,11 @@ export async function GET(request: Request) {
     results.map((result) => fetchRecipe(result.url, queryTerms)),
   );
 
+  // Explicit dietary/kosher words in the query (e.g. "חלבי") are treated as
+  // hard requirements — a scraped recipe that contradicts one (a parve cake
+  // showing up for a "עוגה חלבי" search) is dropped instead of returned.
+  const requirements = extractRequirements(query);
+
   const recipes: ParsedRecipe[] = [];
   const links: WebSearchResult[] = [];
   const seenRecipeUrls = new Set<string>();
@@ -84,6 +90,7 @@ export async function GET(request: Request) {
 
   attempts.forEach((attempt, i) => {
     if (attempt.status === "fulfilled") {
+      if (contradictsRequirements(attempt.value, requirements)) return;
       const key = normalizedUrlKey(attempt.value.source_url);
       if (seenRecipeUrls.has(key)) return;
       seenRecipeUrls.add(key);

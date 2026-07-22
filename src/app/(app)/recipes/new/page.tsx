@@ -14,7 +14,7 @@ export default function NewRecipePage() {
   function handleSubmit(input: RecipeInput) {
     mutate(input, {
       onSuccess: (recipe) => {
-        showToast(`"${recipe.title}" נשמר בהצלחה! 🎉`);
+        showToast(`"${recipe.title}" נשמר בהצלחה!`);
         router.push(`/recipes/${recipe.id}`);
       },
     });

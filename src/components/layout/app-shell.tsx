@@ -7,6 +7,7 @@ import { useRecipesRealtime } from "@/lib/queries/recipes";
 import { useShoppingListRealtime } from "@/lib/queries/shopping-list";
 import { useKnownItemsRealtime } from "@/lib/queries/known-items";
 import { useCookLogsRealtime } from "@/lib/queries/cook-logs";
+import { usePantryRealtime } from "@/lib/queries/pantry";
 
 export function AppShell({
   userEmail,
@@ -19,6 +20,7 @@ export function AppShell({
   useShoppingListRealtime();
   useKnownItemsRealtime();
   useCookLogsRealtime();
+  usePantryRealtime();
 
   return (
     <div className="flex min-h-screen flex-col">

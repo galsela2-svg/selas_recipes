@@ -33,9 +33,24 @@ function resolveDdgUrl(href: string): string | null {
   }
 }
 
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // Scrapes DuckDuckGo's no-JS HTML results page — there's no official
 // key-free search API, and this is a well-established technique for
 // side projects. Markup is unversioned and may drift over time.
+//
+// DuckDuckGo returns the same top results for the same query every time, so
+// repeated searches (or "surprise me again") kept surfacing the same
+// handful of sites. Pulling a wider pool and shuffling it before trimming
+// to `limit` spreads results across more sites without hurting topical
+// relevance (everything in the pool still matched the query).
 export async function searchWeb(
   query: string,
   limit = 6,
@@ -63,20 +78,20 @@ export async function searchWeb(
     ...html.matchAll(/<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi),
   ];
 
-  const results: WebSearchResult[] = [];
+  const pool: WebSearchResult[] = [];
 
-  for (let i = 0; i < titleMatches.length && results.length < limit; i++) {
+  for (let i = 0; i < titleMatches.length; i++) {
     const href = titleMatches[i][1];
     const title = stripTags(titleMatches[i][2]);
     const url = resolveDdgUrl(href);
     if (!url || !title) continue;
 
-    results.push({
+    pool.push({
       title,
       url,
       snippet: snippetMatches[i] ? stripTags(snippetMatches[i][1]) : "",
     });
   }
 
-  return results;
+  return shuffle(pool).slice(0, limit);
 }

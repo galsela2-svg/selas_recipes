@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { Flame, RefreshCw } from "lucide-react";
 
 export default function GlobalError({
   error,
@@ -17,7 +17,7 @@ export default function GlobalError({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-      <span className="text-5xl">😬</span>
+      <Flame className="size-12 text-danger" strokeWidth={1.5} />
       <div className="space-y-1">
         <h1 className="font-serif text-2xl font-bold text-foreground">אופס, משהו נשרף בתנור</h1>
         <p className="text-sm text-muted">

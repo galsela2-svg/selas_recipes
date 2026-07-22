@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown } from "lucide-react";
+import { Crown, Users } from "lucide-react";
 import { useCurrentUserId } from "@/lib/queries/auth";
 import type { CookLog, Recipe } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,10 @@ export function CoupleStatsCard({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <p className="mb-3 text-sm font-semibold text-foreground">מי מבשל יותר? 👩‍🍳👨‍🍳</p>
+      <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        <Users className="size-4 text-accent" />
+        מי מבשל יותר?
+      </p>
       <div className="grid grid-cols-2 gap-3">
         {[
           { key: "mine" as const, label: "אני", stats: mine },

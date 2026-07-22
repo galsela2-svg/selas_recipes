@@ -1,28 +1,60 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
+  Beef,
+  CakeSlice,
   ChefHat,
   ChevronDown,
+  Clock,
+  ClockFading,
+  CookingPot,
+  Croissant,
+  Dessert,
+  Dices,
+  Drumstick,
+  Dumbbell,
+  EggFried,
+  ExternalLink,
+  Flame,
+  Globe,
+  Hamburger,
   Heart,
+  LayoutGrid,
+  Leaf,
+  Loader2,
+  Meh,
+  Milk,
+  Pizza,
   RotateCcw,
+  Salad,
+  Sandwich,
+  Scale,
   Search,
   SlidersHorizontal,
+  Smile,
+  Soup,
   Star,
   UtensilsCrossed,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
-import { useRecipes } from "@/lib/queries/recipes";
+import { useRecipes, useCreateRecipe } from "@/lib/queries/recipes";
 import { useTags } from "@/lib/queries/tags";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
-import { DIETARY_TAG_GROUPS } from "@/lib/types";
+import { DIETARY_TAG_GROUPS, type ParsedRecipe } from "@/lib/types";
+import { buildDiscoveryQuery } from "@/lib/taste-profile";
+import { useToast } from "@/components/providers/toast-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
-import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { RecipeShelf } from "@/components/dashboard/recipe-shelf";
 import { CategoryTiles, type CategoryTile } from "@/components/dashboard/category-tiles";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
 import { WebRecipeSuggestions } from "@/components/dashboard/web-recipe-suggestions";
+import { ImportableRecipeCard } from "@/components/search/importable-recipe-card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,7 +81,81 @@ const TIME_BUCKET_SEARCH_HINT: Partial<Record<TimeBucket, string>> = {
   short: "מהיר וקל",
 };
 
+// Quick-filter chips for the "web only" search mode — these build a free
+// text query rather than filtering the local collection (see CATEGORY_TILES
+// for that), so they can be broader/looser than the structured dietary tags.
+type Token = { icon: LucideIcon; label: string };
+
+const TOKEN_GROUPS: { label: string; tokens: Token[] }[] = [
+  {
+    label: "סוג מנה",
+    tokens: [
+      { icon: CakeSlice, label: "עוגות" },
+      { icon: Croissant, label: "מאפים" },
+      { icon: UtensilsCrossed, label: "פסטה" },
+      { icon: Soup, label: "מרקים" },
+      { icon: Salad, label: "סלטים" },
+      { icon: Drumstick, label: "עוף" },
+      { icon: Dessert, label: "קינוחים" },
+      { icon: Leaf, label: "צמחוני" },
+      { icon: Zap, label: "מהיר וקל" },
+    ],
+  },
+  {
+    label: "סגנון אוכל",
+    tokens: [
+      { icon: Pizza, label: "איטלקי" },
+      { icon: Soup, label: "אסייתי" },
+      { icon: Hamburger, label: "אמריקאי" },
+      { icon: Flame, label: "מקסיקני" },
+      { icon: CookingPot, label: "הודי" },
+      { icon: Soup, label: "תאילנדי" },
+      { icon: Salad, label: "יווני" },
+      { icon: CookingPot, label: "מרוקאי" },
+      { icon: Croissant, label: "צרפתי" },
+      { icon: Sandwich, label: "מזרח תיכוני" },
+    ],
+  },
+  {
+    label: "זמן הכנה",
+    tokens: [
+      { icon: Zap, label: "מהיר" },
+      { icon: Clock, label: "תוך שעה" },
+      { icon: ClockFading, label: "בישול איטי" },
+    ],
+  },
+  {
+    label: "רמת קושי",
+    tokens: [
+      { icon: Smile, label: "קל להכנה" },
+      { icon: Meh, label: "רמת קושי בינונית" },
+      { icon: Dumbbell, label: "מתכון מאתגר" },
+    ],
+  },
+  {
+    label: "כשרות",
+    tokens: [
+      { icon: Beef, label: "בשרי" },
+      { icon: Milk, label: "חלבי" },
+      { icon: Scale, label: "פרווה" },
+    ],
+  },
+  {
+    label: "סוג ארוחה",
+    tokens: [
+      { icon: EggFried, label: "ארוחת בוקר" },
+      { icon: Sandwich, label: "ארוחת צהריים" },
+      { icon: UtensilsCrossed, label: "ארוחת ערב" },
+      { icon: Dessert, label: "קינוח" },
+    ],
+  },
+];
+
+type WebSearchResult = { title: string; url: string; snippet: string };
+type SearchResponse = { recipes: ParsedRecipe[]; links: WebSearchResult[] };
+
 export default function DashboardPage() {
+  const [mode, setMode] = useState<"collection" | "web">("collection");
   const { data: recipes, isLoading } = useRecipes();
   const { data: pantryItems } = usePantryItems();
   const { data: cookLogs } = useAllCookLogs();
@@ -87,28 +193,20 @@ export default function DashboardPage() {
     return averages;
   }, [cookLogs]);
 
-  // Recipes are already fetched ordered by created_at desc, so [0] is the
-  // most recent and the first favorite found is the most recently favorited.
-  const heroRecipe = useMemo(() => {
-    if (!recipes || recipes.length === 0) return null;
-    return recipes.find((r) => r.is_favorite) ?? recipes[0];
-  }, [recipes]);
-
   const pantryShelf = useMemo(() => {
     if (!recipes || pantryNames.length === 0) return [];
     return [...recipes]
-      .filter((r) => r.id !== heroRecipe?.id)
       .sort((a, b) => countMissing(a.ingredients) - countMissing(b.ingredients))
       .slice(0, 8);
-  }, [recipes, pantryNames, countMissing, heroRecipe]);
+  }, [recipes, pantryNames, countMissing]);
 
   const topRatedShelf = useMemo(() => {
     if (!recipes) return [];
     return [...recipes]
-      .filter((r) => r.id !== heroRecipe?.id && ratingByRecipeId.has(r.id))
+      .filter((r) => ratingByRecipeId.has(r.id))
       .sort((a, b) => (ratingByRecipeId.get(b.id) ?? 0) - (ratingByRecipeId.get(a.id) ?? 0))
       .slice(0, 8);
-  }, [recipes, ratingByRecipeId, heroRecipe]);
+  }, [recipes, ratingByRecipeId]);
 
   const activeFilterCount =
     (activeTag ? 1 : 0) +
@@ -216,6 +314,11 @@ export default function DashboardPage() {
     return parts.join(" ").trim();
   }, [search, activeTag, selectedDietary, timeBucket]);
 
+  // Web suggestions matching the same requirements show up whenever the
+  // local collection doesn't have much to offer — not only when it's
+  // completely empty — so "no great match yet" never dead-ends.
+  const showWebSuggestions = !isLoading && webQuery && filtered.length < 3;
+
   return (
     <div className="space-y-6">
       <div>
@@ -225,237 +328,258 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {!isLoading && (
-        <CategoryTiles isActive={isTileActive} onSelect={handleTileSelect} />
-      )}
+      <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-surface p-1">
+        <button
+          onClick={() => setMode("collection")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+            mode === "collection" ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
+          )}
+        >
+          <LayoutGrid className="size-4" />
+          האוסף שלי
+        </button>
+        <button
+          onClick={() => setMode("web")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+            mode === "web" ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
+          )}
+        >
+          <Globe className="size-4" />
+          חיפוש באינטרנט
+        </button>
+      </div>
 
-      {isLoading ? (
-        <Spinner />
+      {mode === "web" ? (
+        <WebSearchMode />
       ) : (
         <>
-          {isBrowsingUnfiltered && heroRecipe && (
-            <DashboardHero
-              recipe={heroRecipe}
-              eyebrow={heroRecipe.is_favorite ? "מהמועדפים שלכם" : "התווסף לאחרונה"}
-            />
+          {!isLoading && <CategoryTiles isActive={isTileActive} onSelect={handleTileSelect} />}
+
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <>
+              {isBrowsingUnfiltered && (
+                <RecipeShelf
+                  title="אפשר לבשל עכשיו"
+                  icon={ChefHat}
+                  recipes={pantryShelf}
+                  badge={(r) => {
+                    const missing = countMissing(r.ingredients);
+                    return missing === 0 ? "יש לכם הכול!" : `חסרים ${missing}`;
+                  }}
+                />
+              )}
+
+              {isBrowsingUnfiltered && (
+                <RecipeShelf
+                  title="המדורגים ביותר"
+                  icon={Star}
+                  recipes={topRatedShelf}
+                  badge={(r) => {
+                    const rating = ratingByRecipeId.get(r.id);
+                    return rating ? `${rating.toFixed(1)}/10` : null;
+                  }}
+                />
+              )}
+            </>
           )}
 
-          {isBrowsingUnfiltered && (
-            <RecipeShelf
-              title="אפשר לבשל עכשיו 🍳"
-              recipes={pantryShelf}
-              badge={(r) => {
-                const missing = countMissing(r.ingredients);
-                return missing === 0 ? "יש לכם הכול!" : `חסרים ${missing}`;
-              }}
-            />
-          )}
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="חיפוש במתכונים שלכם..."
+                  className="ps-9"
+                />
+              </div>
+              <button
+                onClick={() => setCookNowMode((prev) => !prev)}
+                title="מה אפשר לבשל עכשיו?"
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                  cookNowMode
+                    ? "border-success bg-success/15 text-success"
+                    : "border-border text-muted hover:bg-surface-2",
+                )}
+              >
+                <ChefHat className="size-4" />
+              </button>
+              <button
+                onClick={() => setFavoritesOnly((prev) => !prev)}
+                title="מועדפים בלבד"
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                  favoritesOnly
+                    ? "border-danger bg-danger/15 text-danger"
+                    : "border-border text-muted hover:bg-surface-2",
+                )}
+              >
+                <Heart className={cn("size-4", favoritesOnly && "fill-danger")} />
+              </button>
+              <button
+                onClick={() => setShowFilters((prev) => !prev)}
+                title="מה מכינים היום?"
+                className={cn(
+                  "relative flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                  showFilters || activeFilterCount > 0
+                    ? "border-accent bg-accent/15 text-accent"
+                    : "border-border text-muted hover:bg-surface-2",
+                )}
+              >
+                <SlidersHorizontal className="size-4" />
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
 
-          {isBrowsingUnfiltered && (
-            <RecipeShelf
-              title="המדורגים ביותר ⭐"
-              recipes={topRatedShelf}
-              badge={(r) => {
-                const rating = ratingByRecipeId.get(r.id);
-                return rating ? `${rating.toFixed(1)}/10` : null;
-              }}
-            />
-          )}
-        </>
-      )}
+            {showFilters && (
+              <div className="space-y-3 rounded-xl border border-border bg-surface p-3.5">
+                <div className="flex items-center justify-between">
+                  <p className="font-serif text-base font-bold text-foreground">מה מכינים היום?</p>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={resetFilters}
+                      className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                    >
+                      <RotateCcw className="size-3.5" />
+                      נקו סינון ({activeFilterCount})
+                    </button>
+                  )}
+                </div>
 
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="חיפוש מתכונים..."
-              className="ps-9"
-            />
+                {tags.length > 0 && (
+                  <FilterRow label="תגית">
+                    <Badge active={activeTag === null} onClick={() => setActiveTag(null)}>
+                      הכול
+                    </Badge>
+                    {tags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        active={activeTag === tag}
+                        onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </FilterRow>
+                )}
+
+                <FilterRow label="זמן הכנה">
+                  {TIME_BUCKETS.map(({ value, label }) => (
+                    <Badge
+                      key={value}
+                      active={timeBucket === value}
+                      onClick={() => setTimeBucket(timeBucket === value ? null : value)}
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </FilterRow>
+
+                <FilterRow label="דירוג מינימלי">
+                  <div className="flex items-center gap-1">
+                    {[2, 4, 6, 8, 10].map((threshold, i) => (
+                      <button
+                        key={threshold}
+                        onClick={() => setMinRating(minRating === threshold ? 0 : threshold)}
+                        className="cursor-pointer p-0.5"
+                      >
+                        <Star
+                          className={cn(
+                            "size-5",
+                            minRating >= threshold ? "fill-accent text-accent" : "text-border",
+                          )}
+                        />
+                        <span className="sr-only">{i + 1} כוכבים ומעלה</span>
+                      </button>
+                    ))}
+                  </div>
+                </FilterRow>
+
+                {DIETARY_TAG_GROUPS.map((group) => (
+                  <FilterRow key={group.label} label={group.label}>
+                    {group.options.map((tag) => (
+                      <Badge
+                        key={tag}
+                        active={selectedDietary.includes(tag)}
+                        onClick={() => toggleDietary(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </FilterRow>
+                ))}
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => setCookNowMode((prev) => !prev)}
-            title="מה אפשר לבשל עכשיו?"
-            className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
-              cookNowMode
-                ? "border-success bg-success/15 text-success"
-                : "border-border text-muted hover:bg-surface-2",
-            )}
-          >
-            <ChefHat className="size-4" />
-          </button>
-          <button
-            onClick={() => setFavoritesOnly((prev) => !prev)}
-            title="מועדפים בלבד"
-            className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
-              favoritesOnly
-                ? "border-danger bg-danger/15 text-danger"
-                : "border-border text-muted hover:bg-surface-2",
-            )}
-          >
-            <Heart className={cn("size-4", favoritesOnly && "fill-danger")} />
-          </button>
-          <button
-            onClick={() => setShowFilters((prev) => !prev)}
-            title="מה מכינים היום?"
-            className={cn(
-              "relative flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
-              showFilters || activeFilterCount > 0
-                ? "border-accent bg-accent/15 text-accent"
-                : "border-border text-muted hover:bg-surface-2",
-            )}
-          >
-            <SlidersHorizontal className="size-4" />
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
 
-        {showFilters && (
-          <div className="space-y-3 rounded-xl border border-border bg-surface p-3.5">
+          {!isLoading && filtered.length > 0 && (
             <div className="flex items-center justify-between">
-              <p className="font-serif text-base font-bold text-foreground">מה מכינים היום?</p>
-              {activeFilterCount > 0 && (
+              <p className="font-serif text-lg font-bold text-foreground">
+                {isBrowsingUnfiltered ? "כל המתכונים" : `${filtered.length} התאמות`}
+              </p>
+              {!isBrowsingUnfiltered && !showFilters && activeFilterCount > 0 && (
                 <button
-                  onClick={resetFilters}
+                  onClick={() => setShowFilters(true)}
                   className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
                 >
-                  <RotateCcw className="size-3.5" />
-                  נקו סינון ({activeFilterCount})
+                  <ChevronDown className="size-3.5" />
+                  הצג סינון
                 </button>
               )}
             </div>
-
-            {tags.length > 0 && (
-              <FilterRow label="תגית">
-                <Badge active={activeTag === null} onClick={() => setActiveTag(null)}>
-                  הכול
-                </Badge>
-                {tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    active={activeTag === tag}
-                    onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </FilterRow>
-            )}
-
-            <FilterRow label="זמן הכנה">
-              {TIME_BUCKETS.map(({ value, label }) => (
-                <Badge
-                  key={value}
-                  active={timeBucket === value}
-                  onClick={() => setTimeBucket(timeBucket === value ? null : value)}
-                >
-                  {label}
-                </Badge>
-              ))}
-            </FilterRow>
-
-            <FilterRow label="דירוג מינימלי">
-              <div className="flex items-center gap-1">
-                {[2, 4, 6, 8, 10].map((threshold, i) => (
-                  <button
-                    key={threshold}
-                    onClick={() => setMinRating(minRating === threshold ? 0 : threshold)}
-                    className="cursor-pointer p-0.5"
-                  >
-                    <Star
-                      className={cn(
-                        "size-5",
-                        minRating >= threshold ? "fill-accent text-accent" : "text-border",
-                      )}
-                    />
-                    <span className="sr-only">{i + 1} כוכבים ומעלה</span>
-                  </button>
-                ))}
-              </div>
-            </FilterRow>
-
-            {DIETARY_TAG_GROUPS.map((group) => (
-              <FilterRow key={group.label} label={group.label}>
-                {group.options.map((tag) => (
-                  <Badge
-                    key={tag}
-                    active={selectedDietary.includes(tag)}
-                    onClick={() => toggleDietary(tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </FilterRow>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {!isLoading && filtered.length > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="font-serif text-lg font-bold text-foreground">
-            {isBrowsingUnfiltered ? "כל המתכונים" : `${filtered.length} התאמות`}
-          </p>
-          {!isBrowsingUnfiltered && !showFilters && activeFilterCount > 0 && (
-            <button
-              onClick={() => setShowFilters(true)}
-              className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
-            >
-              <ChevronDown className="size-3.5" />
-              הצג סינון
-            </button>
           )}
-        </div>
-      )}
 
-      {cookNowMode && !isLoading && filtered.length > 0 && (
-        <p className="flex items-center gap-1.5 text-sm text-success">
-          <ChefHat className="size-4 shrink-0" />
-          ממוין לפי הכי פחות מרכיבים חסרים מהמזווה שלכם.
-        </p>
-      )}
+          {cookNowMode && !isLoading && filtered.length > 0 && (
+            <p className="flex items-center gap-1.5 text-sm text-success">
+              <ChefHat className="size-4 shrink-0" />
+              ממוין לפי הכי פחות מרכיבים חסרים מהמזווה שלכם.
+            </p>
+          )}
 
-      {isLoading ? null : filtered.length === 0 ? (
-        <div className="space-y-4">
-          <EmptyState
-            icon={favoritesOnly ? Heart : UtensilsCrossed}
-            title={
-              recipes?.length
-                ? favoritesOnly
-                  ? "אין עדיין מתכונים מועדפים"
-                  : "לא נמצאו מתכונים תואמים"
-                : "עדיין אין מתכונים"
-            }
-            description={
-              recipes?.length
-                ? favoritesOnly
-                  ? "לחצו על הלב במתכון כדי להוסיף אותו למועדפים."
-                  : "נסו לשנות או לנקות את הסינון, או חפשו הצעה למטה."
-                : "הוסיפו את המתכון הראשון שלכם כדי להתחיל."
-            }
-          />
-          {webQuery && <WebRecipeSuggestions key={webQuery} query={webQuery} />}
-        </div>
-      ) : isBrowsingUnfiltered ? (
-        <CategorizedRecipeGrid recipes={filtered} />
-      ) : (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-          {filtered.map((recipe) => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              missingCount={cookNowMode ? countMissing(recipe.ingredients) : undefined}
+          {isLoading ? null : filtered.length === 0 ? (
+            <EmptyState
+              icon={favoritesOnly ? Heart : UtensilsCrossed}
+              title={
+                recipes?.length
+                  ? favoritesOnly
+                    ? "אין עדיין מתכונים מועדפים"
+                    : "לא נמצאו מתכונים תואמים"
+                  : "עדיין אין מתכונים"
+              }
+              description={
+                recipes?.length
+                  ? favoritesOnly
+                    ? "לחצו על הלב במתכון כדי להוסיף אותו למועדפים."
+                    : "נסו לשנות או לנקות את הסינון, או חפשו הצעה למטה."
+                  : "הוסיפו את המתכון הראשון שלכם כדי להתחיל."
+              }
             />
-          ))}
-        </div>
+          ) : isBrowsingUnfiltered ? (
+            <CategorizedRecipeGrid recipes={filtered} />
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+              {filtered.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  missingCount={cookNowMode ? countMissing(recipe.ingredients) : undefined}
+                />
+              ))}
+            </div>
+          )}
+
+          {showWebSuggestions && <WebRecipeSuggestions key={webQuery} query={webQuery} />}
+        </>
       )}
     </div>
   );
@@ -468,6 +592,342 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [&>*]:shrink-0">
         {children}
       </div>
+    </div>
+  );
+}
+
+/** Pure web search — no dependency on the local collection. Same rich
+ * quick-filter tokens and "אולי תאהבו" discovery that used to live on the
+ * standalone /search page, folded into the unified tab. */
+function WebSearchMode() {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const { data: myRecipes, isLoading: myRecipesLoading } = useRecipes();
+  const createRecipe = useCreateRecipe();
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<SearchResponse | null>(null);
+  const [importingUrl, setImportingUrl] = useState<string | null>(null);
+
+  const [suggestions, setSuggestions] = useState<SearchResponse | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const hasFetchedSuggestions = useRef(false);
+
+  useEffect(() => {
+    if (myRecipesLoading || hasFetchedSuggestions.current) return;
+    hasFetchedSuggestions.current = true;
+
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+
+    const q = buildDiscoveryQuery(myRecipes);
+    fetch(`/api/search-recipes?q=${encodeURIComponent(q)}`)
+      .then(async (res) => ({ ok: res.ok, body: await res.json() }))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (!ok) throw new Error(body.error || "לא הצלחנו למצוא הצעות.");
+        setSuggestions(body as SearchResponse);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setSuggestionsError(err instanceof Error ? err.message : "משהו השתבש.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSuggestionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [myRecipesLoading, myRecipes]);
+
+  async function refreshSuggestions() {
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    try {
+      const q = buildDiscoveryQuery(myRecipes);
+      const res = await fetch(`/api/search-recipes?q=${encodeURIComponent(q)}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו למצוא הצעות.");
+      setSuggestions(body as SearchResponse);
+    } catch (err) {
+      setSuggestionsError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }
+
+  async function performSearch(term: string) {
+    if (!term.trim()) return;
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const res = await fetch(`/api/search-recipes?q=${encodeURIComponent(term.trim())}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "החיפוש נכשל.");
+      setResult(body as SearchResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSearch(e: FormEvent) {
+    e.preventDefault();
+    performSearch(query);
+  }
+
+  function toggleToken(token: string) {
+    setQuery((prev) => {
+      const words = prev.split(/\s+/).filter(Boolean);
+      const tokenWords = token.split(/\s+/);
+      const has = tokenWords.every((w) => words.includes(w));
+      if (has) {
+        return words.filter((w) => !tokenWords.includes(w)).join(" ");
+      }
+      return [...words, ...tokenWords].join(" ");
+    });
+  }
+
+  function isTokenActive(token: string): boolean {
+    const words = query.split(/\s+/).filter(Boolean);
+    return token.split(/\s+/).every((w) => words.includes(w));
+  }
+
+  // "Import" saves the recipe straight to the collection and lands you on
+  // it, with a toast confirming it was added — no separate review step.
+  function saveRecipe(recipe: ParsedRecipe) {
+    setSavingUrl(recipe.source_url);
+    createRecipe.mutate(
+      {
+        title: recipe.title,
+        description: recipe.description,
+        image_url: recipe.image_url,
+        source_url: recipe.source_url,
+        prep_time_minutes: recipe.prep_time_minutes,
+        cook_time_minutes: recipe.cook_time_minutes,
+        servings: recipe.servings,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        tags: [],
+        dietary_tags: [],
+      },
+      {
+        onSuccess: (saved) => {
+          showToast(`"${saved.title}" נוסף למתכונים שלכם!`);
+          router.push(`/recipes/${saved.id}`);
+        },
+        onError: () => setError("לא הצלחנו לשמור את המתכון. נסו שוב."),
+        onSettled: () => setSavingUrl(null),
+      },
+    );
+  }
+
+  async function importFromLink(link: WebSearchResult) {
+    setImportingUrl(link.url);
+    setError(null);
+    try {
+      const res = await fetch("/api/parse-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: link.url }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לפענח את הדף הזה.");
+      saveRecipe(body as ParsedRecipe);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setImportingUrl(null);
+    }
+  }
+
+  const hasSearched = result !== null;
+  const totalResults = (result?.recipes.length ?? 0) + (result?.links.length ?? 0);
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSearch} className="flex gap-2">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="לדוגמה: עוגת שוקולד, פסטה ברוטב שמנת..."
+          className="flex-1"
+        />
+        <Button type="submit" loading={loading}>
+          <Search className="size-4" />
+        </Button>
+      </form>
+
+      <div className="space-y-3">
+        {TOKEN_GROUPS.map((group) => (
+          <div key={group.label} className="space-y-1.5">
+            <p className="text-xs font-medium text-muted">{group.label}</p>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5">
+              {group.tokens.map(({ icon: Icon, label }) => {
+                const active = isTokenActive(label);
+                return (
+                  <button
+                    key={label}
+                    onClick={() => toggleToken(label)}
+                    className={
+                      "flex shrink-0 flex-col items-center gap-1 rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer " +
+                      (active
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-border bg-surface text-muted hover:border-accent/50 hover:text-foreground")
+                    }
+                  >
+                    <span
+                      className={cn(
+                        "flex size-7 items-center justify-center rounded-full bg-gradient-to-br",
+                        active ? "from-accent/30 to-[#f3e0d0]" : "from-accent/10 to-[#f3e0d0]/50",
+                      )}
+                    >
+                      <Icon className="size-4" strokeWidth={1.75} />
+                    </span>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-danger">{error}</p>}
+
+      {loading && (
+        <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted">
+          <Loader2 className="size-6 animate-spin" />
+          מחפשים ובודקים מתכונים ברשת...
+        </div>
+      )}
+
+      {hasSearched && !loading && totalResults === 0 && (
+        <EmptyState
+          icon={Search}
+          title="לא נמצאו תוצאות"
+          description="נסו נושא אחר או ניסוח שונה."
+        />
+      )}
+
+      {!hasSearched && !loading && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
+              <Dices className="size-5 text-accent" />
+              אולי תאהבו
+            </p>
+            <button
+              onClick={refreshSuggestions}
+              disabled={suggestionsLoading}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground cursor-pointer disabled:opacity-50"
+            >
+              <Dices className="size-3.5" />
+              הפתיעו אותי שוב
+            </button>
+          </div>
+          <p className="text-xs text-muted">
+            הצעות מהאינטרנט לפי מה שאתם בדרך כלל מבשלים — עד שתחפשו משהו ספציפי.
+          </p>
+
+          {suggestionsLoading && (
+            <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted">
+              <Loader2 className="size-5 animate-spin" />
+              מחפשים הצעות בשבילכם...
+            </div>
+          )}
+
+          {suggestionsError && <p className="text-sm text-danger">{suggestionsError}</p>}
+
+          {!suggestionsLoading && suggestions && suggestions.recipes.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {suggestions.recipes.map((recipe) => (
+                <ImportableRecipeCard
+                  key={recipe.source_url}
+                  recipe={recipe}
+                  onImport={saveRecipe}
+                  saving={savingUrl === recipe.source_url}
+                />
+              ))}
+            </div>
+          )}
+
+          {!suggestionsLoading &&
+            suggestions &&
+            suggestions.recipes.length === 0 &&
+            suggestions.links.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted">
+                לא הצלחנו למצוא הצעה הפעם — נסו &quot;הפתיעו אותי שוב&quot; או חפשו נושא ספציפי.
+              </p>
+            )}
+        </div>
+      )}
+
+      {result && result.recipes.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            מתכונים מוכנים לייבוא
+          </p>
+          <div className="flex flex-col gap-3">
+            {result.recipes.map((recipe) => (
+              <ImportableRecipeCard
+                key={recipe.source_url}
+                recipe={recipe}
+                onImport={saveRecipe}
+                saving={savingUrl === recipe.source_url}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {result && result.links.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            תוצאות נוספות
+          </p>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+            {result.links.map((link) => (
+              <li key={link.url} className="flex items-center gap-2 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-1 text-sm font-medium text-foreground">
+                    {link.title}
+                  </p>
+                  {link.snippet && (
+                    <p className="line-clamp-1 text-xs text-muted">{link.snippet}</p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={importingUrl === link.url}
+                  onClick={() => importFromLink(link)}
+                >
+                  ייבוא
+                </Button>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-foreground"
+                >
+                  <ExternalLink className="size-4" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

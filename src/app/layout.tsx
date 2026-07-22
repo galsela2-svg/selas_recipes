@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Frank_Ruhl_Libre, Heebo } from "next/font/google";
+import { Rubik } from "next/font/google";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { SettingsProvider } from "@/components/providers/settings-provider";
 import { TimerProvider } from "@/components/timers/timer-store";
@@ -8,18 +8,12 @@ import { ToastProvider } from "@/components/providers/toast-provider";
 import { THEME_INIT_SCRIPT } from "@/lib/settings-store";
 import "./globals.css";
 
-const heebo = Heebo({
-  variable: "--font-heebo",
+// One typeface for the whole app — headings and body both use this, at
+// different weights, instead of mixing a serif display font with a
+// separate sans body font.
+const rubik = Rubik({
+  variable: "--font-primary",
   subsets: ["hebrew", "latin"],
-});
-
-// A warm editorial serif for recipe titles and hero headings — the app's
-// one deliberate typographic "signature," so it reads as a crafted
-// cookbook rather than a generic dashboard template.
-const frankRuhlLibre = Frank_Ruhl_Libre({
-  variable: "--font-display",
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700", "900"],
 });
 
 export const metadata: Metadata = {
@@ -37,7 +31,7 @@ export default function RootLayout({
       lang="he"
       dir="rtl"
       suppressHydrationWarning
-      className={`${heebo.variable} ${frankRuhlLibre.variable} h-full antialiased`}
+      className={`${rubik.variable} h-full antialiased`}
     >
       <head>
         {/* Sets the theme class before first paint, so switching between

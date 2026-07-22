@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  /* Dark theme (default/fallback before the theme script runs). */
-  --background: #0b0c0e;
-  --surface: #111318;
-  --surface-2: #171a20;
-  --border: #23262e;
-  --foreground: #e9eaec;
-  --muted: #9296a1;
-  --accent: #e8823a;
-  --accent-foreground: #14110b;
-  --danger: #e05a5a;
-  --success: #5ac98a;
-  color-scheme: dark;
+  /* Light theme (default/fallback before the theme script runs). */
+  --background: #faf8f5;
+  --surface: #ffffff;
+  --surface-2: #f1efe9;
+  --border: #e6e2da;
+  --foreground: #1d1b17;
+  --muted: #706a60;
+  --accent: #e0567a;
+  --accent-foreground: #1a0a10;
+  --danger: #c23b3b;
+  --success: #1f8a4c;
+  color-scheme: light;
 }
 
 :root.dark {
@@ -50,8 +50,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-success: var(--success);
-  --font-sans: var(--font-heebo);
-  --font-serif: var(--font-display);
+  --font-sans: var(--font-primary);
+  --font-serif: var(--font-primary);
 }
 
 body {

@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ImageOff } from "lucide-react";
+import { ImageOff, type LucideIcon } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 
 export function RecipeShelf({
   title,
+  icon: Icon,
   recipes,
   badge,
 }: {
   title: string;
+  icon: LucideIcon;
   recipes: Recipe[];
   badge?: (recipe: Recipe) => string | null;
 }) {
@@ -17,7 +19,10 @@ export function RecipeShelf({
 
   return (
     <div className="space-y-2.5">
-      <p className="font-serif text-lg font-bold text-foreground">{title}</p>
+      <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
+        <Icon className="size-5 text-accent" />
+        {title}
+      </p>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
         {recipes.map((recipe) => {
           const badgeText = badge?.(recipe) ?? null;

@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "פיצ'ר השדרוג בעזרת AI דורש הגדרת ANTHROPIC_API_KEY בקובץ .env.local בצד השרת.",
+            "פיצ'ר השדרוג בעזרת AI דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
         },
         { status: 500 },
       );

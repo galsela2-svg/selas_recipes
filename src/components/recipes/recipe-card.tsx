@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Heart, ImageOff } from "lucide-react";
+import { CircleCheck, Clock, Heart, ImageOff } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { cn, formatMinutes } from "@/lib/utils";
 import { useToggleFavorite } from "@/lib/queries/recipes";
@@ -39,11 +39,18 @@ export function RecipeCard({
   const missingBadge = missingCount !== undefined && (
     <span
       className={cn(
-        "text-[10px] font-medium",
+        "flex items-center gap-0.5 text-[10px] font-medium",
         missingCount === 0 ? "text-success" : "text-muted",
       )}
     >
-      {missingCount === 0 ? "יש הכול! 🎉" : `חסרים ${missingCount}`}
+      {missingCount === 0 ? (
+        <>
+          <CircleCheck className="size-3" />
+          יש הכול!
+        </>
+      ) : (
+        `חסרים ${missingCount}`
+      )}
     </span>
   );
 
@@ -103,8 +110,20 @@ export function RecipeCard({
             </span>
           )}
           {missingCount !== undefined && (
-            <span className={missingCount === 0 ? "text-success" : "text-white/85"}>
-              {missingCount === 0 ? "יש הכול! 🎉" : `חסרים ${missingCount}`}
+            <span
+              className={cn(
+                "flex items-center gap-0.5",
+                missingCount === 0 ? "text-success" : "text-white/85",
+              )}
+            >
+              {missingCount === 0 ? (
+                <>
+                  <CircleCheck className="size-3" />
+                  יש הכול!
+                </>
+              ) : (
+                `חסרים ${missingCount}`
+              )}
             </span>
           )}
         </div>

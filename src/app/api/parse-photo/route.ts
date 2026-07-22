@@ -96,7 +96,8 @@ export async function POST(request: Request) {
     if (err instanceof Anthropic.AuthenticationError) {
       return NextResponse.json(
         {
-          error: "סריקת מתכון מתמונה דורשת הגדרת ANTHROPIC_API_KEY בקובץ .env.local בצד השרת.",
+          error:
+            "סריקת מתכון מתמונה דורשת הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
         },
         { status: 500 },
       );

@@ -200,6 +200,7 @@ export default function ShoppingListPage() {
               </Link>
               <ItemGroup
                 items={recipeItems}
+                showRecipeLink={false}
                 onToggle={(id, checked) => toggleItem.mutate({ id, checked })}
                 onDelete={(id) => deleteItem.mutate(id)}
               />
@@ -241,6 +242,7 @@ export default function ShoppingListPage() {
 
 function ItemGroup({
   items,
+  showRecipeLink = true,
   onToggle,
   onDelete,
 }: {
@@ -251,6 +253,7 @@ function ItemGroup({
     recipe_id: string | null;
     recipe_title?: string | null;
   }[];
+  showRecipeLink?: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onDelete: (id: string) => void;
 }) {
@@ -286,7 +289,7 @@ function ItemGroup({
             >
               {item.name}
             </p>
-            {item.recipe_id && item.recipe_title && (
+            {showRecipeLink && item.recipe_id && item.recipe_title && (
               <Link
                 href={`/recipes/${item.recipe_id}`}
                 className="text-xs text-muted hover:text-accent"

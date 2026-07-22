@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { UtensilsCrossed } from "lucide-react";
 
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-      <span className="text-5xl">🍽️</span>
+      <UtensilsCrossed className="size-12 text-muted" strokeWidth={1.5} />
       <div className="space-y-1">
         <h1 className="font-serif text-2xl font-bold text-foreground">הצלחת לגמור?</h1>
         <p className="text-sm text-muted">

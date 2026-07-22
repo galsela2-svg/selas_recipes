@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Globe, Loader2 } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
-import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
 import { useCreateRecipe } from "@/lib/queries/recipes";
 import { useToast } from "@/components/providers/toast-provider";
 import { ImportableRecipeCard } from "@/components/search/importable-recipe-card";
@@ -28,7 +27,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [importingUrl, setImportingUrl] = useState<string | null>(null);
-  const [quickSavingUrl, setQuickSavingUrl] = useState<string | null>(null);
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
 
   async function handleSearch() {
     setSearched(true);
@@ -48,13 +47,10 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
     }
   }
 
-  function importRecipe(recipe: ParsedRecipe) {
-    sessionStorage.setItem(PENDING_IMPORT_KEY, JSON.stringify(recipe));
-    router.push("/recipes/new");
-  }
-
-  function quickSaveRecipe(recipe: ParsedRecipe) {
-    setQuickSavingUrl(recipe.source_url);
+  // "Import" saves the recipe straight to the collection and lands you on
+  // it, with a toast confirming it was added — no separate review step.
+  function saveRecipe(recipe: ParsedRecipe) {
+    setSavingUrl(recipe.source_url);
     createRecipe.mutate(
       {
         title: recipe.title,
@@ -70,9 +66,12 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
         dietary_tags: [],
       },
       {
-        onSuccess: () => showToast(`"${recipe.title}" נשמר למתכונים שלכם! 🎉`),
+        onSuccess: (saved) => {
+          showToast(`"${saved.title}" נוסף למתכונים שלכם!`);
+          router.push(`/recipes/${saved.id}`);
+        },
         onError: () => setError("לא הצלחנו לשמור את המתכון. נסו שוב."),
-        onSettled: () => setQuickSavingUrl(null),
+        onSettled: () => setSavingUrl(null),
       },
     );
   }
@@ -88,7 +87,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "לא הצלחנו לפענח את הדף הזה.");
-      importRecipe(body as ParsedRecipe);
+      saveRecipe(body as ParsedRecipe);
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
@@ -129,13 +128,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
 
       {!loading && result && totalResults === 0 && (
         <p className="py-4 text-center text-sm text-muted">
-          גם באינטרנט לא מצאנו משהו שמתאים בול. נסו לשנות את הסינון או לחפש בעצמכם ב
-          <button
-            onClick={() => router.push("/search")}
-            className="mx-1 font-medium text-accent hover:underline cursor-pointer"
-          >
-            חיפוש מתכונים
-          </button>
+          גם באינטרנט לא מצאנו משהו שמתאים בול. נסו לשנות את הסינון או לחפש נושא אחר למעלה.
         </p>
       )}
 
@@ -149,9 +142,8 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
               <ImportableRecipeCard
                 key={recipe.source_url}
                 recipe={recipe}
-                onImport={importRecipe}
-                onQuickSave={quickSaveRecipe}
-                saving={quickSavingUrl === recipe.source_url}
+                onImport={saveRecipe}
+                saving={savingUrl === recipe.source_url}
               />
             ))}
           </div>

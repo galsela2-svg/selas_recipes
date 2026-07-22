@@ -1,3 +1,19 @@
+import {
+  BookOpen,
+  Camera,
+  ChefHat,
+  Flame,
+  Heart,
+  Library,
+  Package,
+  Palette,
+  Star,
+  Trophy,
+  Utensils,
+  UtensilsCrossed,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import type { CookLog, Recipe } from "@/lib/types";
 import { addDaysIso, todayIsoDate } from "@/lib/date-utils";
 
@@ -10,7 +26,7 @@ export type AchievementInput = {
 
 export type Achievement = {
   id: string;
-  emoji: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   current: number;
@@ -62,7 +78,7 @@ export function computeAchievements({
 
   function make(
     id: string,
-    emoji: string,
+    icon: LucideIcon,
     title: string,
     description: string,
     current: number,
@@ -70,7 +86,7 @@ export function computeAchievements({
   ): Achievement {
     return {
       id,
-      emoji,
+      icon,
       title,
       description,
       current: clampToTarget(current, target),
@@ -80,21 +96,21 @@ export function computeAchievements({
   }
 
   return [
-    make("first-cook", "🍳", "טעימה ראשונה", "רשמו את הבישול הראשון שלכם", cookLogs.length, 1),
-    make("cook-5", "👨‍🍳", "שף מתחיל", "5 בישולים רשומים", cookLogs.length, 5),
-    make("cook-20", "🧑‍🍳", "שף מנוסה", "20 בישולים רשומים", cookLogs.length, 20),
-    make("cook-50", "🏆", "אלוף המטבח", "50 בישולים רשומים", cookLogs.length, 50),
-    make("collector-10", "📖", "האספן", "10 מתכונים בספר שלכם", recipes.length, 10),
-    make("collector-50", "📚", "ספרן אמיתי", "50 מתכונים בספר שלכם", recipes.length, 50),
-    make("critic", "⭐", "מבקר מקצועי", "דירגו 10 בישולים", ratedCount, 10),
-    make("streak-3", "🔥", "רצף אש", "3 ימי בישול ברצף", streak, 3),
-    make("streak-7", "🔥🔥", "רצף שבועי", "7 ימי בישול ברצף", streak, 7),
-    make("photographer", "📸", "צלם אוכל", "5 תמונות תוצאה שהעליתם", photoCount, 5),
-    make("favorites", "❤️", "מאהב מתכונים", "5 מתכונים מסומנים כמועדפים", favoriteCount, 5),
-    make("pantry", "🧺", "מנהל מזווה", "5 פריטים במזווה שלכם", pantryCount, 5),
+    make("first-cook", ChefHat, "טעימה ראשונה", "רשמו את הבישול הראשון שלכם", cookLogs.length, 1),
+    make("cook-5", Utensils, "שף מתחיל", "5 בישולים רשומים", cookLogs.length, 5),
+    make("cook-20", UtensilsCrossed, "שף מנוסה", "20 בישולים רשומים", cookLogs.length, 20),
+    make("cook-50", Trophy, "אלוף המטבח", "50 בישולים רשומים", cookLogs.length, 50),
+    make("collector-10", BookOpen, "האספן", "10 מתכונים בספר שלכם", recipes.length, 10),
+    make("collector-50", Library, "ספרן אמיתי", "50 מתכונים בספר שלכם", recipes.length, 50),
+    make("critic", Star, "מבקר מקצועי", "דירגו 10 בישולים", ratedCount, 10),
+    make("streak-3", Flame, "רצף אש", "3 ימי בישול ברצף", streak, 3),
+    make("streak-7", Zap, "רצף שבועי", "7 ימי בישול ברצף", streak, 7),
+    make("photographer", Camera, "צלם אוכל", "5 תמונות תוצאה שהעליתם", photoCount, 5),
+    make("favorites", Heart, "מאהב מתכונים", "5 מתכונים מסומנים כמועדפים", favoriteCount, 5),
+    make("pantry", Package, "מנהל מזווה", "5 פריטים במזווה שלכם", pantryCount, 5),
     make(
       "variety",
-      "🌈",
+      Palette,
       "מגוון תזונתי",
       "בישלתם מתכונים מ-3 קטגוריות תזונה שונות",
       cookedDietaryTags.size,

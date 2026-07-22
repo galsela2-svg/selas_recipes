@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Gauge, ImageOff, Loader2, Plus, Users } from "lucide-react";
+import { Clock, Gauge, ImageOff, Loader2, Users } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { estimateDifficulty } from "@/lib/recipe-difficulty";
 import { formatMinutes } from "@/lib/utils";
@@ -8,12 +8,10 @@ import { formatMinutes } from "@/lib/utils";
 export function ImportableRecipeCard({
   recipe,
   onImport,
-  onQuickSave,
   saving,
 }: {
   recipe: ParsedRecipe;
   onImport: (recipe: ParsedRecipe) => void;
-  onQuickSave?: (recipe: ParsedRecipe) => void;
   saving?: boolean;
 }) {
   const totalTime = (recipe.prep_time_minutes ?? 0) + (recipe.cook_time_minutes ?? 0);
@@ -21,9 +19,15 @@ export function ImportableRecipeCard({
 
   return (
     <div
-      onClick={() => onImport(recipe)}
+      onClick={() => !saving && onImport(recipe)}
+      aria-busy={saving}
       className="relative flex items-stretch gap-3 overflow-hidden rounded-xl border border-border bg-surface text-start transition-colors hover:border-accent/50 cursor-pointer"
     >
+      {saving && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70">
+          <Loader2 className="size-5 animate-spin text-accent" />
+        </div>
+      )}
       <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden bg-surface-2 text-muted">
         {recipe.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -61,20 +65,6 @@ export function ImportableRecipeCard({
           {new URL(recipe.source_url).hostname.replace(/^www\./, "")}
         </p>
       </div>
-
-      {onQuickSave && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onQuickSave(recipe);
-          }}
-          disabled={saving}
-          title="הוספה ישירה למתכונים שלי"
-          className="absolute end-2 top-2 flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm transition-transform cursor-pointer active:scale-90 disabled:opacity-60"
-        >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        </button>
-      )}
     </div>
   );
 }
