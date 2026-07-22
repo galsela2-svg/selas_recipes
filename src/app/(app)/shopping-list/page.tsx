@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Package, Plus, ShoppingCart, Trash2, X } from "lucide-react";
+import { ChefHat, Package, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import {
   useAddShoppingItems,
   useClearCheckedItems,
@@ -71,10 +71,36 @@ export default function ShoppingListPage() {
 
   const checkedItems = items?.filter((i) => i.checked) ?? [];
 
-  const groupedUnchecked = useMemo(() => {
-    const map = new Map<string, ShoppingListItem[]>();
+  // Items added from a recipe get grouped under that recipe's name (in the
+  // order the recipe was first added to the list) instead of blending into
+  // the aisle-sorted list — so "what's this for?" is answered by the
+  // section header instead of a subtitle on every single item. Freeform
+  // items (no recipe) keep the aisle-category grouping.
+  const { recipeGroups, generalItems } = useMemo(() => {
+    const groups = new Map<string, { recipeId: string; recipeTitle: string; items: ShoppingListItem[] }>();
+    const general: ShoppingListItem[] = [];
+
     for (const item of items ?? []) {
       if (item.checked) continue;
+      if (item.recipe_id && item.recipe_title) {
+        const group = groups.get(item.recipe_id) ?? {
+          recipeId: item.recipe_id,
+          recipeTitle: item.recipe_title,
+          items: [],
+        };
+        group.items.push(item);
+        groups.set(item.recipe_id, group);
+      } else {
+        general.push(item);
+      }
+    }
+
+    return { recipeGroups: Array.from(groups.values()), generalItems: general };
+  }, [items]);
+
+  const groupedGeneral = useMemo(() => {
+    const map = new Map<string, ShoppingListItem[]>();
+    for (const item of generalItems) {
       const category = categorizeItem(item.name);
       const list = map.get(category) ?? [];
       list.push(item);
@@ -84,7 +110,7 @@ export default function ShoppingListPage() {
       category,
       items: map.get(category) ?? [],
     })).filter((group) => group.items.length > 0);
-  }, [items]);
+  }, [generalItems]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -163,7 +189,24 @@ export default function ShoppingListPage() {
         />
       ) : (
         <div className="space-y-6">
-          {groupedUnchecked.map(({ category, items: categoryItems }) => (
+          {recipeGroups.map(({ recipeId, recipeTitle, items: recipeItems }) => (
+            <div key={recipeId} className="space-y-2">
+              <Link
+                href={`/recipes/${recipeId}`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-accent"
+              >
+                <ChefHat className="size-4 shrink-0 text-accent" />
+                {recipeTitle}
+              </Link>
+              <ItemGroup
+                items={recipeItems}
+                onToggle={(id, checked) => toggleItem.mutate({ id, checked })}
+                onDelete={(id) => deleteItem.mutate(id)}
+              />
+            </div>
+          ))}
+
+          {groupedGeneral.map(({ category, items: categoryItems }) => (
             <div key={category} className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">
                 {category}
