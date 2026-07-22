@@ -32,7 +32,7 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
           <p className="font-serif text-lg font-bold text-foreground">
             {section.emoji} {section.label}
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {section.recipes.map((recipe) => (
               <RecipeCard key={recipe.id} recipe={recipe} />
             ))}
@@ -43,7 +43,7 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
       {rest.length > 0 && (
         <div className="space-y-3">
           <p className="font-serif text-lg font-bold text-foreground">📖 מתכונים נוספים</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {rest.map((recipe) => (
               <RecipeCard key={recipe.id} recipe={recipe} />
             ))}
