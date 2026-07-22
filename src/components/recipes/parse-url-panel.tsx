@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Camera, Clapperboard, Link2 } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,7 @@ export function ParseUrlPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit() {
     const trimmedUrl = url.trim();
     if (!trimmedUrl) return;
 
@@ -132,19 +131,25 @@ export function ParseUrlPanel({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <Input
           type="url"
           dir="ltr"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
           placeholder="instagram.com/reel/... או קישור לכל אתר מתכונים"
         />
-        <Button type="submit" size="lg" className="w-full" loading={loading}>
+        <Button type="button" size="lg" className="w-full" loading={loading} onClick={handleSubmit}>
           <Link2 className="size-4" />
           פענוח המתכון
         </Button>
-      </form>
+      </div>
 
       <button
         type="button"
