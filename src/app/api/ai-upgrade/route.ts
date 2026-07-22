@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { anthropicErrorResponse } from "@/lib/ai-error";
 
 const client = new Anthropic();
 
@@ -105,20 +106,12 @@ export async function POST(request: Request) {
     const parsed = JSON.parse(textBlock.text) as AiUpgradeResult;
     return NextResponse.json(parsed);
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json(
-        {
-          error:
-            "פיצ'ר השדרוג בעזרת AI דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
-        },
-        { status: 500 },
-      );
-    }
-    if (err instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `שגיאה מול שירות ה-AI: ${err.message}` },
-        { status: 502 },
-      );
+    const anthropicError = anthropicErrorResponse(
+      err,
+      "פיצ'ר השדרוג בעזרת AI דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+    );
+    if (anthropicError) {
+      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
     }
     return NextResponse.json({ error: "משהו השתבש. נסו שוב." }, { status: 500 });
   }

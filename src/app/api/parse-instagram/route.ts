@@ -10,6 +10,7 @@ import {
 import { searchWeb } from "@/lib/web-search";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
+import { anthropicErrorResponse } from "@/lib/ai-error";
 
 const client = new Anthropic();
 
@@ -173,14 +174,12 @@ export async function POST(request: Request) {
     if (!textBlock || textBlock.type !== "text") throw new Error("No text content");
     extraction = JSON.parse(textBlock.text) as CaptionExtraction;
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json(
-        {
-          error:
-            "פענוח מאינסטגרם דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
-        },
-        { status: 500 },
-      );
+    const anthropicError = anthropicErrorResponse(
+      err,
+      "פענוח מאינסטגרם דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+    );
+    if (anthropicError) {
+      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
     }
     return NextResponse.json({ error: "לא הצלחנו לנתח את הכיתוב." }, { status: 502 });
   }
