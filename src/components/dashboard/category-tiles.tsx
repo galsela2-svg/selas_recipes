@@ -42,24 +42,24 @@ export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "dietary", tag: "עד גיל שנתיים", group: "תינוקות", icon: Baby, label: "תינוקות" },
 ];
 
-// Each tile gets its own fill/stroke pair instead of one flat accent tone —
-// a real colored icon (like an egg-yolk yellow EggFried, a rose Dessert),
-// not just a tinted circle sitting behind a gray line-icon.
-const TILE_COLORS: Record<string, { fill: string; stroke: string }> = {
-  בוקר: { fill: "#fde68a", stroke: "#b45309" },
-  צהריים: { fill: "#fed7aa", stroke: "#c2410c" },
-  ערב: { fill: "#e9d5ff", stroke: "#7e22ce" },
-  קינוחים: { fill: "#fbcfe8", stroke: "#db2777" },
-  מאפים: { fill: "#fde68a", stroke: "#92400e" },
-  בשרי: { fill: "#fecaca", stroke: "#b91c1c" },
-  חלבי: { fill: "#bfdbfe", stroke: "#2563eb" },
-  פרווה: { fill: "#e5e7eb", stroke: "#4b5563" },
-  צמחוני: { fill: "#bbf7d0", stroke: "#15803d" },
-  "מהיר וקל": { fill: "#fef08a", stroke: "#ca8a04" },
-  מועדפים: { fill: "#fecdd3", stroke: "#e11d48" },
-  "הכי מדורגים": { fill: "#fde68a", stroke: "#d97706" },
-  "שבת וחג": { fill: "#ddd6fe", stroke: "#6d28d9" },
-  תינוקות: { fill: "#bae6fd", stroke: "#0284c7" },
+// Flat design on purpose: a solid (non-gradient) tinted badge behind a
+// solid-filled icon glyph — two flat colors, no shading/gloss/shadow, and
+// no emoji (which render with built-in depth on most platforms).
+const TILE_COLORS: Record<string, { badge: string; icon: string }> = {
+  בוקר: { badge: "#fef3c7", icon: "#b45309" },
+  צהריים: { badge: "#ffedd5", icon: "#c2410c" },
+  ערב: { badge: "#f3e8ff", icon: "#7e22ce" },
+  קינוחים: { badge: "#fce7f3", icon: "#db2777" },
+  מאפים: { badge: "#fef3c7", icon: "#92400e" },
+  בשרי: { badge: "#fee2e2", icon: "#b91c1c" },
+  חלבי: { badge: "#dbeafe", icon: "#2563eb" },
+  פרווה: { badge: "#f1f5f9", icon: "#475569" },
+  צמחוני: { badge: "#dcfce7", icon: "#15803d" },
+  "מהיר וקל": { badge: "#fef9c3", icon: "#ca8a04" },
+  מועדפים: { badge: "#ffe4e6", icon: "#e11d48" },
+  "הכי מדורגים": { badge: "#fef3c7", icon: "#d97706" },
+  "שבת וחג": { badge: "#ede9fe", icon: "#6d28d9" },
+  תינוקות: { badge: "#e0f2fe", icon: "#0284c7" },
 };
 
 export function CategoryTiles({
@@ -88,11 +88,16 @@ export function CategoryTiles({
                   : "border-border bg-surface hover:border-accent/40",
               )}
             >
-              <Icon
-                className="size-7"
-                strokeWidth={1.75}
-                style={{ color: colors.stroke, fill: colors.fill }}
-              />
+              <span
+                className="flex size-9 items-center justify-center rounded-full"
+                style={{ backgroundColor: colors.badge }}
+              >
+                <Icon
+                  className="size-5"
+                  strokeWidth={1.75}
+                  style={{ color: colors.icon, fill: colors.icon, fillOpacity: 0.25 }}
+                />
+              </span>
               <span
                 className={cn(
                   "text-[11px] font-medium leading-tight",
