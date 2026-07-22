@@ -252,11 +252,11 @@ function ItemGroup({
   onDelete: (id: string) => void;
 }) {
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="grid grid-cols-2 gap-2">
       {items.map((item) => (
         <li
           key={item.id}
-          className="group flex items-center gap-3 px-4 py-3"
+          className="group flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
         >
           <button
             onClick={() => onToggle(item.id, !item.checked)}
@@ -286,7 +286,7 @@ function ItemGroup({
             {showRecipeLink && item.recipe_id && item.recipe_title && (
               <Link
                 href={`/recipes/${item.recipe_id}`}
-                className="text-xs text-muted hover:text-accent"
+                className="block truncate text-xs text-muted hover:text-accent"
               >
                 {item.recipe_title}
               </Link>
@@ -295,9 +295,9 @@ function ItemGroup({
 
           <button
             onClick={() => onDelete(item.id)}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-danger cursor-pointer"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-danger cursor-pointer"
           >
-            <X className="size-4" />
+            <X className="size-3.5" />
           </button>
         </li>
       ))}
