@@ -151,21 +151,21 @@ const TOKEN_GROUPS: { label: string; tokens: Token[] }[] = [
   },
 ];
 
-// Flat design: a solid (non-gradient) tinted badge behind a solid-filled
-// icon — no shading/shadow, and no emoji. Cycles through a small palette by
-// a stable hash of the label instead of hand-mapping ~35 tokens.
-const TOKEN_COLOR_PALETTE: { badge: string; icon: string }[] = [
-  { badge: "#fee2e2", icon: "#b91c1c" },
-  { badge: "#ffedd5", icon: "#c2410c" },
-  { badge: "#fef3c7", icon: "#b45309" },
-  { badge: "#dcfce7", icon: "#15803d" },
-  { badge: "#dbeafe", icon: "#2563eb" },
-  { badge: "#ede9fe", icon: "#6d28d9" },
-  { badge: "#fce7f3", icon: "#db2777" },
-  { badge: "#e0f2fe", icon: "#0284c7" },
+// Flat design: the color lives only in the icon (solid fill + solid
+// stroke) — no badge/circle behind it. Cycles through a small palette by a
+// stable hash of the label instead of hand-mapping ~35 tokens.
+const TOKEN_COLOR_PALETTE: string[] = [
+  "#b91c1c",
+  "#c2410c",
+  "#b45309",
+  "#15803d",
+  "#2563eb",
+  "#6d28d9",
+  "#db2777",
+  "#0284c7",
 ];
 
-function colorForLabel(label: string): { badge: string; icon: string } {
+function colorForLabel(label: string): string {
   let hash = 0;
   for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) | 0;
   return TOKEN_COLOR_PALETTE[Math.abs(hash) % TOKEN_COLOR_PALETTE.length];
@@ -795,7 +795,7 @@ function WebSearchMode() {
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5">
               {group.tokens.map(({ icon: Icon, label }) => {
                 const active = isTokenActive(label);
-                const colors = colorForLabel(label);
+                const color = colorForLabel(label);
                 return (
                   <button
                     key={label}
@@ -807,16 +807,11 @@ function WebSearchMode() {
                         : "border-border bg-surface text-muted hover:border-accent/50 hover:text-foreground")
                     }
                   >
-                    <span
-                      className="flex size-7 items-center justify-center rounded-full"
-                      style={{ backgroundColor: colors.badge }}
-                    >
-                      <Icon
-                        className="size-4"
-                        strokeWidth={1.75}
-                        style={{ color: colors.icon, fill: colors.icon, fillOpacity: 0.25 }}
-                      />
-                    </span>
+                    <Icon
+                      className="size-5"
+                      strokeWidth={1.75}
+                      style={{ color, fill: color, fillOpacity: 0.35 }}
+                    />
                     {label}
                   </button>
                 );

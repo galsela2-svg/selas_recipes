@@ -42,24 +42,24 @@ export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "dietary", tag: "עד גיל שנתיים", group: "תינוקות", icon: Baby, label: "תינוקות" },
 ];
 
-// Flat design on purpose: a solid (non-gradient) tinted badge behind a
-// solid-filled icon glyph — two flat colors, no shading/gloss/shadow, and
-// no emoji (which render with built-in depth on most platforms).
-const TILE_COLORS: Record<string, { badge: string; icon: string }> = {
-  בוקר: { badge: "#fef3c7", icon: "#b45309" },
-  צהריים: { badge: "#ffedd5", icon: "#c2410c" },
-  ערב: { badge: "#f3e8ff", icon: "#7e22ce" },
-  קינוחים: { badge: "#fce7f3", icon: "#db2777" },
-  מאפים: { badge: "#fef3c7", icon: "#92400e" },
-  בשרי: { badge: "#fee2e2", icon: "#b91c1c" },
-  חלבי: { badge: "#dbeafe", icon: "#2563eb" },
-  פרווה: { badge: "#f1f5f9", icon: "#475569" },
-  צמחוני: { badge: "#dcfce7", icon: "#15803d" },
-  "מהיר וקל": { badge: "#fef9c3", icon: "#ca8a04" },
-  מועדפים: { badge: "#ffe4e6", icon: "#e11d48" },
-  "הכי מדורגים": { badge: "#fef3c7", icon: "#d97706" },
-  "שבת וחג": { badge: "#ede9fe", icon: "#6d28d9" },
-  תינוקות: { badge: "#e0f2fe", icon: "#0284c7" },
+// Flat design on purpose: the color lives only in the icon itself (a solid
+// fill + solid stroke) — no badge/circle sitting behind it, no gradient, no
+// shadow, no emoji.
+const TILE_COLORS: Record<string, string> = {
+  בוקר: "#b45309",
+  צהריים: "#c2410c",
+  ערב: "#7e22ce",
+  קינוחים: "#db2777",
+  מאפים: "#92400e",
+  בשרי: "#b91c1c",
+  חלבי: "#2563eb",
+  פרווה: "#475569",
+  צמחוני: "#15803d",
+  "מהיר וקל": "#ca8a04",
+  מועדפים: "#e11d48",
+  "הכי מדורגים": "#d97706",
+  "שבת וחג": "#6d28d9",
+  תינוקות: "#0284c7",
 };
 
 export function CategoryTiles({
@@ -76,7 +76,7 @@ export function CategoryTiles({
         {CATEGORY_TILES.map((tile) => {
           const active = isActive(tile);
           const Icon = tile.icon;
-          const colors = TILE_COLORS[tile.label];
+          const color = TILE_COLORS[tile.label];
           return (
             <button
               key={tile.label}
@@ -88,16 +88,11 @@ export function CategoryTiles({
                   : "border-border bg-surface hover:border-accent/40",
               )}
             >
-              <span
-                className="flex size-9 items-center justify-center rounded-full"
-                style={{ backgroundColor: colors.badge }}
-              >
-                <Icon
-                  className="size-5"
-                  strokeWidth={1.75}
-                  style={{ color: colors.icon, fill: colors.icon, fillOpacity: 0.25 }}
-                />
-              </span>
+              <Icon
+                className="size-6"
+                strokeWidth={1.75}
+                style={{ color, fill: color, fillOpacity: 0.35 }}
+              />
               <span
                 className={cn(
                   "text-[11px] font-medium leading-tight",
