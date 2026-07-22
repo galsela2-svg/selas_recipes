@@ -151,6 +151,26 @@ const TOKEN_GROUPS: { label: string; tokens: Token[] }[] = [
   },
 ];
 
+// A real colored icon per token instead of a flat tinted circle — cycles
+// through a small palette (picked by a stable hash of the label, so a given
+// token always lands on the same color) rather than hand-mapping ~35 labels.
+const TOKEN_COLOR_PALETTE: { fill: string; stroke: string }[] = [
+  { fill: "#fecaca", stroke: "#b91c1c" },
+  { fill: "#fed7aa", stroke: "#c2410c" },
+  { fill: "#fde68a", stroke: "#b45309" },
+  { fill: "#bbf7d0", stroke: "#15803d" },
+  { fill: "#bfdbfe", stroke: "#2563eb" },
+  { fill: "#ddd6fe", stroke: "#6d28d9" },
+  { fill: "#fbcfe8", stroke: "#db2777" },
+  { fill: "#bae6fd", stroke: "#0284c7" },
+];
+
+function colorForLabel(label: string): { fill: string; stroke: string } {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) | 0;
+  return TOKEN_COLOR_PALETTE[Math.abs(hash) % TOKEN_COLOR_PALETTE.length];
+}
+
 type WebSearchResult = { title: string; url: string; snippet: string };
 type SearchResponse = { recipes: ParsedRecipe[]; links: WebSearchResult[] };
 
@@ -775,6 +795,7 @@ function WebSearchMode() {
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5">
               {group.tokens.map(({ icon: Icon, label }) => {
                 const active = isTokenActive(label);
+                const colors = colorForLabel(label);
                 return (
                   <button
                     key={label}
@@ -786,14 +807,11 @@ function WebSearchMode() {
                         : "border-border bg-surface text-muted hover:border-accent/50 hover:text-foreground")
                     }
                   >
-                    <span
-                      className={cn(
-                        "flex size-7 items-center justify-center rounded-full bg-gradient-to-br",
-                        active ? "from-accent/30 to-[#f3e0d0]" : "from-accent/10 to-[#f3e0d0]/50",
-                      )}
-                    >
-                      <Icon className="size-4" strokeWidth={1.75} />
-                    </span>
+                    <Icon
+                      className="size-5"
+                      strokeWidth={1.75}
+                      style={{ color: colors.stroke, fill: colors.fill }}
+                    />
                     {label}
                   </button>
                 );

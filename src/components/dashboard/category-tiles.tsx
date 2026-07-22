@@ -42,6 +42,26 @@ export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "dietary", tag: "עד גיל שנתיים", group: "תינוקות", icon: Baby, label: "תינוקות" },
 ];
 
+// Each tile gets its own fill/stroke pair instead of one flat accent tone —
+// a real colored icon (like an egg-yolk yellow EggFried, a rose Dessert),
+// not just a tinted circle sitting behind a gray line-icon.
+const TILE_COLORS: Record<string, { fill: string; stroke: string }> = {
+  בוקר: { fill: "#fde68a", stroke: "#b45309" },
+  צהריים: { fill: "#fed7aa", stroke: "#c2410c" },
+  ערב: { fill: "#e9d5ff", stroke: "#7e22ce" },
+  קינוחים: { fill: "#fbcfe8", stroke: "#db2777" },
+  מאפים: { fill: "#fde68a", stroke: "#92400e" },
+  בשרי: { fill: "#fecaca", stroke: "#b91c1c" },
+  חלבי: { fill: "#bfdbfe", stroke: "#2563eb" },
+  פרווה: { fill: "#e5e7eb", stroke: "#4b5563" },
+  צמחוני: { fill: "#bbf7d0", stroke: "#15803d" },
+  "מהיר וקל": { fill: "#fef08a", stroke: "#ca8a04" },
+  מועדפים: { fill: "#fecdd3", stroke: "#e11d48" },
+  "הכי מדורגים": { fill: "#fde68a", stroke: "#d97706" },
+  "שבת וחג": { fill: "#ddd6fe", stroke: "#6d28d9" },
+  תינוקות: { fill: "#bae6fd", stroke: "#0284c7" },
+};
+
 export function CategoryTiles({
   isActive,
   onSelect,
@@ -56,6 +76,7 @@ export function CategoryTiles({
         {CATEGORY_TILES.map((tile) => {
           const active = isActive(tile);
           const Icon = tile.icon;
+          const colors = TILE_COLORS[tile.label];
           return (
             <button
               key={tile.label}
@@ -67,16 +88,11 @@ export function CategoryTiles({
                   : "border-border bg-surface hover:border-accent/40",
               )}
             >
-              <span
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full bg-gradient-to-br",
-                  active
-                    ? "from-accent/30 to-[#f3e0d0]"
-                    : "from-accent/10 to-[#f3e0d0]/50",
-                )}
-              >
-                <Icon className={cn("size-5", active ? "text-accent" : "text-muted")} strokeWidth={1.75} />
-              </span>
+              <Icon
+                className="size-7"
+                strokeWidth={1.75}
+                style={{ color: colors.stroke, fill: colors.fill }}
+              />
               <span
                 className={cn(
                   "text-[11px] font-medium leading-tight",

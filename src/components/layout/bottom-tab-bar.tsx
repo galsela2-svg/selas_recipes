@@ -42,14 +42,11 @@ export function BottomTabBar() {
                 active ? "text-accent" : "text-muted",
               )}
             >
-              <span
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-full",
-                  active && "bg-gradient-to-br from-accent/25 to-[#f3e0d0]",
-                )}
-              >
-                <Icon className="size-5" strokeWidth={active ? 2.25 : 2} />
-              </span>
+              <Icon
+                className="size-5.5"
+                strokeWidth={active ? 2.25 : 2}
+                style={active ? { fill: "#fbcfe8" } : undefined}
+              />
               {link.label}
             </Link>
           );
