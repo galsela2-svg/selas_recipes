@@ -4,6 +4,9 @@ import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { anthropicErrorResponse } from "@/lib/ai-error";
 
+// See search-recipes/route.ts for why this is needed.
+export const maxDuration = 60;
+
 const client = new Anthropic();
 
 const TEXT_SCHEMA = {

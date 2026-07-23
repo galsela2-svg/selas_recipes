@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 import { searchWeb, type WebSearchResult } from "@/lib/web-search";
+
+// Vercel kills a serverless function at its platform default (10s on the
+// Hobby plan) unless told otherwise — this route fans out to several
+// external pages (each with its own multi-second fetch timeout) on top of
+// the search request itself, which routinely runs past that default and
+// gets cut off mid-request, surfacing as a generic "search failed" error.
+export const maxDuration = 60;
+
 import { fetchHtml, findLikelyRecipeLink, parseRecipeFromHtml } from "@/lib/recipe-scraper";
 import { contradictsRequirements, extractRequirements } from "@/lib/dietary-classifier";
 import type { ParsedRecipe } from "@/lib/types";

@@ -12,6 +12,11 @@ import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { anthropicErrorResponse } from "@/lib/ai-error";
 
+// See search-recipes/route.ts for why this is needed — the Instagram fetch,
+// the AI extraction call, and the web-search fallback can together run past
+// Vercel's platform default timeout.
+export const maxDuration = 60;
+
 const client = new Anthropic();
 
 const CAPTION_SCHEMA = {

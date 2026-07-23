@@ -10,6 +10,10 @@ import {
 } from "@/lib/recipe-scraper";
 import { createClient } from "@/lib/supabase/server";
 
+// See search-recipes/route.ts for why this is needed — external page
+// fetches here can otherwise run past Vercel's platform default timeout.
+export const maxDuration = 60;
+
 function parseUrl(raw: string): URL | null {
   try {
     const url = new URL(raw);

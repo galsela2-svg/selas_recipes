@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { anthropicErrorResponse } from "@/lib/ai-error";
 
+// See search-recipes/route.ts for why this is needed.
+export const maxDuration = 60;
+
 const client = new Anthropic();
 
 const RESPONSE_SCHEMA = {
