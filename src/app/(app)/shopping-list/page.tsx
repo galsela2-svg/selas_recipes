@@ -7,6 +7,7 @@ import {
   useAddShoppingItems,
   useClearCheckedItems,
   useDeleteShoppingItem,
+  useDeleteShoppingItemsByRecipe,
   useShoppingList,
   useToggleShoppingItem,
 } from "@/lib/queries/shopping-list";
@@ -28,6 +29,7 @@ export default function ShoppingListPage() {
   const addItems = useAddShoppingItems();
   const toggleItem = useToggleShoppingItem();
   const deleteItem = useDeleteShoppingItem();
+  const deleteRecipeItems = useDeleteShoppingItemsByRecipe();
   const clearChecked = useClearCheckedItems();
   const { data: knownItems } = useKnownItems();
   const { data: recipes } = useRecipes();
@@ -186,13 +188,22 @@ export default function ShoppingListPage() {
         <div className="space-y-6">
           {recipeGroups.map(({ recipeId, recipeTitle, items: recipeItems }) => (
             <div key={recipeId} className="space-y-2">
-              <Link
-                href={`/recipes/${recipeId}`}
-                className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-accent"
-              >
-                <ChefHat className="size-4 shrink-0 text-accent" />
-                {recipeTitle}
-              </Link>
+              <div className="flex items-center justify-between gap-2">
+                <Link
+                  href={`/recipes/${recipeId}`}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-accent"
+                >
+                  <ChefHat className="size-4 shrink-0 text-accent" />
+                  {recipeTitle}
+                </Link>
+                <button
+                  onClick={() => deleteRecipeItems.mutate(recipeId)}
+                  title="הסרת כל המצרכים של המתכון הזה"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-danger cursor-pointer"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
               <ItemGroup
                 items={recipeItems}
                 showRecipeLink={false}

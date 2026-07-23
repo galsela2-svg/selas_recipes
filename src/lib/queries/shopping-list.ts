@@ -143,6 +143,38 @@ export function useDeleteShoppingItem() {
   });
 }
 
+/** Deletes every shopping-list item that came from a given recipe at once
+ * (the "✕" on a recipe's group heading), instead of removing them one by
+ * one. */
+export function useDeleteShoppingItemsByRecipe() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (recipeId: string) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("shopping_list_items")
+        .delete()
+        .eq("recipe_id", recipeId);
+      if (error) throw error;
+    },
+    onMutate: async (recipeId) => {
+      await queryClient.cancelQueries({ queryKey: shoppingListKeys.all });
+      const previous = queryClient.getQueryData<ShoppingListItem[]>(shoppingListKeys.all);
+      queryClient.setQueryData<ShoppingListItem[]>(shoppingListKeys.all, (old) =>
+        old?.filter((item) => item.recipe_id !== recipeId),
+      );
+      return { previous };
+    },
+    onError: (_err, _recipeId, context) => {
+      if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
+    },
+  });
+}
+
 export function useClearCheckedItems() {
   const queryClient = useQueryClient();
 
