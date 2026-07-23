@@ -10,7 +10,7 @@ import { searchWeb } from "@/lib/web-search";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 
 // See search-recipes/route.ts for why this is needed — the Instagram fetch,
 // the AI extraction call, and the web-search fallback can together run past
@@ -153,21 +153,15 @@ export async function POST(request: Request) {
 
   let extraction: CaptionExtraction;
   try {
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents: `כותרת הפוסט: ${igTitle}\n\nכיתוב:\n${caption}`,
-      config: {
-        systemInstruction:
-          "אתה מומחה לחילוץ מתכונים מכיתובים של רשתות חברתיות. הכיתוב עשוי להיות בעברית או באנגלית. " +
-          "אם הכיתוב מכיל מתכון אמיתי (רכיבים ו/או שלבי הכנה), חלץ אותו במדויק. " +
-          "אם הכיתוב לא מכיל מתכון ברור (רק תיאור/האשטגים/פרסום), החזר found_recipe=false והצע שאילתת חיפוש טובה.",
-        responseMimeType: "application/json",
-        responseJsonSchema: CAPTION_SCHEMA,
-      },
+      systemInstruction:
+        "אתה מומחה לחילוץ מתכונים מכיתובים של רשתות חברתיות. הכיתוב עשוי להיות בעברית או באנגלית. " +
+        "אם הכיתוב מכיל מתכון אמיתי (רכיבים ו/או שלבי הכנה), חלץ אותו במדויק. " +
+        "אם הכיתוב לא מכיל מתכון ברור (רק תיאור/האשטגים/פרסום), החזר found_recipe=false והצע שאילתת חיפוש טובה.",
+      schema: CAPTION_SCHEMA,
     });
-
-    if (!response.text) throw new Error("No text content in response");
-    extraction = JSON.parse(response.text) as CaptionExtraction;
+    extraction = JSON.parse(resultText) as CaptionExtraction;
   } catch (err) {
     const geminiError = geminiErrorResponse(
       err,

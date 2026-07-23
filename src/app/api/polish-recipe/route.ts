@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 
 export const maxDuration = 60;
 
@@ -53,21 +53,15 @@ export async function POST(request: Request) {
       const text = typeof body?.text === "string" ? body.text.trim() : "";
       if (!text) return NextResponse.json({ error: "אין תיאור לשפר." }, { status: 400 });
 
-      const response = await gemini.models.generateContent({
-        model: GEMINI_MODEL,
+      const resultText = await generateStructuredJson({
         contents: `כותרת: ${title}\n\nתיאור נוכחי:\n${text}`,
-        config: {
-          systemInstruction:
-            "שכתוב את התיאור הבא לתיאור מקצועי, פרקטי וקצר (1-2 משפטים) של המנה עצמה — " +
-            "בלי סיפורים אישיים, בלי דיבורים לא רלוונטיים, רק מה שעוזר למי שקורא להבין מה זו המנה. " +
-            "שמור על שפת המקור.",
-          responseMimeType: "application/json",
-          responseJsonSchema: DESCRIPTION_SCHEMA,
-        },
+        systemInstruction:
+          "שכתוב את התיאור הבא לתיאור מקצועי, פרקטי וקצר (1-2 משפטים) של המנה עצמה — " +
+          "בלי סיפורים אישיים, בלי דיבורים לא רלוונטיים, רק מה שעוזר למי שקורא להבין מה זו המנה. " +
+          "שמור על שפת המקור.",
+        schema: DESCRIPTION_SCHEMA,
       });
-
-      if (!response.text) throw new Error("No text content in response");
-      const result = JSON.parse(response.text) as DescriptionResult;
+      const result = JSON.parse(resultText) as DescriptionResult;
       return NextResponse.json(result);
     }
 
@@ -76,26 +70,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "אין הוראות הכנה לשפר." }, { status: 400 });
     }
 
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents:
         `כותרת: ${title}\n\n` +
         (ingredients.length ? `מרכיבים:\n${ingredients.map((i) => `- ${i}`).join("\n")}\n\n` : "") +
         `הוראות הכנה נוכחיות:\n${instructions.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
-      config: {
-        systemInstruction:
-          "שכתוב את הוראות ההכנה לרשימת שלבים מקצועית, פרקטית וברורה — נטו מה צריך לעשות, שלב אחרי שלב. " +
-          "הסר סיפורים אישיים, אנקדוטות, הקדמות ('אז ככה חברים...'), ותוספות שאינן פעולות הכנה בפועל. " +
-          "שמור על כל הפעולות והפרטים החשובים (טמפרטורות, זמנים, כמויות) בדיוק כפי שהם. שמור על שפת המקור. " +
-          "בנוסף, על סמך ההוראות והמרכיבים, העריך זמן הכנה (עבודה בפועל, לפני הכנסה לתנור/בישול) וזמן בישול/אפייה " +
-          "בדקות — אם אי אפשר להעריך בסבירות, החזר null.",
-        responseMimeType: "application/json",
-        responseJsonSchema: INSTRUCTIONS_SCHEMA,
-      },
+      systemInstruction:
+        "שכתוב את הוראות ההכנה לרשימת שלבים מקצועית, פרקטית וברורה — נטו מה צריך לעשות, שלב אחרי שלב. " +
+        "הסר סיפורים אישיים, אנקדוטות, הקדמות ('אז ככה חברים...'), ותוספות שאינן פעולות הכנה בפועל. " +
+        "שמור על כל הפעולות והפרטים החשובים (טמפרטורות, זמנים, כמויות) בדיוק כפי שהם. שמור על שפת המקור. " +
+        "בנוסף, על סמך ההוראות והמרכיבים, העריך זמן הכנה (עבודה בפועל, לפני הכנסה לתנור/בישול) וזמן בישול/אפייה " +
+        "בדקות — אם אי אפשר להעריך בסבירות, החזר null.",
+      schema: INSTRUCTIONS_SCHEMA,
     });
-
-    if (!response.text) throw new Error("No text content in response");
-    const result = JSON.parse(response.text) as InstructionsResult;
+    const result = JSON.parse(resultText) as InstructionsResult;
     return NextResponse.json(result);
   } catch (err) {
     const geminiError = geminiErrorResponse(

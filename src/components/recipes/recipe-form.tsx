@@ -5,11 +5,13 @@ import { Loader2, Pencil, Plus, Sparkles, WandSparkles } from "lucide-react";
 import {
   DIETARY_TAG_GROUPS,
   DIETARY_TAG_OPTIONS,
+  RECIPE_OWNERS,
   type ParsedRecipe,
   type Recipe,
   type RecipeInput,
+  type RecipeOwner,
 } from "@/lib/types";
-import { linesToList, listToLines } from "@/lib/utils";
+import { cn, linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -57,6 +59,7 @@ export function RecipeForm({
     () => Boolean(initialRecipe) || Boolean(pendingImport),
   );
 
+  const [madeBy, setMadeBy] = useState<RecipeOwner | null>(initialRecipe?.made_by ?? null);
   const [title, setTitle] = useState(
     initialRecipe?.title ?? pendingImport?.title ?? "",
   );
@@ -263,6 +266,7 @@ export function RecipeForm({
       instructions: linesToList(instructionsText),
       tags,
       dietary_tags: dietaryTags,
+      made_by: madeBy,
     });
   }
 
@@ -288,6 +292,39 @@ export function RecipeForm({
       )}
 
       <div className={manualExpanded ? "space-y-6" : "hidden"}>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">מי הכין/ה</label>
+        <div className="grid grid-cols-4 gap-1.5">
+          {RECIPE_OWNERS.map((owner) => (
+            <button
+              key={owner}
+              type="button"
+              onClick={() => setMadeBy((prev) => (prev === owner ? null : owner))}
+              className={cn(
+                "rounded-lg border px-2 py-2 text-sm font-medium transition-colors cursor-pointer",
+                madeBy === owner
+                  ? "border-accent bg-accent/15 text-accent"
+                  : "border-border text-muted hover:border-accent/50",
+              )}
+            >
+              {owner}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setMadeBy(null)}
+            className={cn(
+              "rounded-lg border px-2 py-2 text-sm font-medium transition-colors cursor-pointer",
+              madeBy === null
+                ? "border-accent bg-accent/15 text-accent"
+                : "border-border text-muted hover:border-accent/50",
+            )}
+          >
+            לא צוין
+          </button>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-foreground">כותרת</label>
         <Input

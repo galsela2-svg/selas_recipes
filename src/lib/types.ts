@@ -79,6 +79,9 @@ export const DIETARY_TAG_GROUPS: { label: string; options: string[] }[] = [
 
 export const DIETARY_TAG_OPTIONS = DIETARY_TAG_GROUPS.flatMap((g) => g.options);
 
+export const RECIPE_OWNERS = ["ניבה", "גל", "משותף"] as const;
+export type RecipeOwner = (typeof RECIPE_OWNERS)[number];
+
 export type Recipe = {
   id: string;
   title: string;
@@ -93,6 +96,7 @@ export type Recipe = {
   tags: string[];
   dietary_tags: string[];
   is_favorite: boolean;
+  made_by: RecipeOwner | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -110,6 +114,7 @@ export type RecipeInput = {
   instructions: string[];
   tags: string[];
   dietary_tags: string[];
+  made_by: RecipeOwner | null;
 };
 
 export type ShoppingListItem = {

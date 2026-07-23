@@ -44,7 +44,7 @@ import { useRecipes, useCreateRecipe } from "@/lib/queries/recipes";
 import { useTags } from "@/lib/queries/tags";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
-import { DIETARY_TAG_GROUPS, type ParsedRecipe } from "@/lib/types";
+import { DIETARY_TAG_GROUPS, RECIPE_OWNERS, type ParsedRecipe, type RecipeOwner } from "@/lib/types";
 import { buildDiscoveryQuery } from "@/lib/taste-profile";
 import { useToast } from "@/components/providers/toast-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
@@ -187,6 +187,7 @@ export default function DashboardPage() {
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null);
   const [minRating, setMinRating] = useState(0);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [ownerFilter, setOwnerFilter] = useState<RecipeOwner | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   const pantryNames = useMemo(() => (pantryItems ?? []).map((p) => p.name), [pantryItems]);
@@ -234,7 +235,8 @@ export default function DashboardPage() {
     (timeBucket ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
-    (ingredientQuery.trim() ? 1 : 0);
+    (ingredientQuery.trim() ? 1 : 0) +
+    (ownerFilter ? 1 : 0);
 
   function resetFilters() {
     setActiveTag(null);
@@ -243,6 +245,7 @@ export default function DashboardPage() {
     setMinRating(0);
     setFavoritesOnly(false);
     setIngredientQuery("");
+    setOwnerFilter(null);
   }
 
   function toggleDietary(tag: string) {
@@ -296,6 +299,7 @@ export default function DashboardPage() {
       const matchesTag = !activeTag || recipe.tags.includes(activeTag);
       const matchesDietary = selectedDietary.every((d) => recipe.dietary_tags.includes(d));
       const matchesFavorite = !favoritesOnly || recipe.is_favorite;
+      const matchesOwner = !ownerFilter || recipe.made_by === ownerFilter;
       const totalTime = (recipe.prep_time_minutes ?? 0) + (recipe.cook_time_minutes ?? 0);
       const matchesTime = !timeBucket || matchesTimeBucket(totalTime, timeBucket);
       const matchesRating = minRating === 0 || (ratingByRecipeId.get(recipe.id) ?? 0) >= minRating;
@@ -305,6 +309,7 @@ export default function DashboardPage() {
         matchesTag &&
         matchesDietary &&
         matchesFavorite &&
+        matchesOwner &&
         matchesTime &&
         matchesRating
       );
@@ -318,6 +323,7 @@ export default function DashboardPage() {
     activeTag,
     selectedDietary,
     favoritesOnly,
+    ownerFilter,
     timeBucket,
     minRating,
     ratingByRecipeId,
@@ -467,6 +473,21 @@ export default function DashboardPage() {
                     placeholder="לדוגמה: לימון"
                   />
                 </div>
+
+                <FilterRow label="מי הכין/ה">
+                  <Badge active={ownerFilter === null} onClick={() => setOwnerFilter(null)}>
+                    הכול
+                  </Badge>
+                  {RECIPE_OWNERS.map((owner) => (
+                    <Badge
+                      key={owner}
+                      active={ownerFilter === owner}
+                      onClick={() => setOwnerFilter(ownerFilter === owner ? null : owner)}
+                    >
+                      {owner}
+                    </Badge>
+                  ))}
+                </FilterRow>
 
                 {tags.length > 0 && (
                   <FilterRow label="תגית">
@@ -721,6 +742,7 @@ function WebSearchMode() {
         instructions: recipe.instructions,
         tags: [],
         dietary_tags: [],
+        made_by: null,
       },
       {
         onSuccess: (saved) => {

@@ -64,6 +64,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
         instructions: recipe.instructions,
         tags: [],
         dietary_tags: [],
+        made_by: null,
       },
       {
         onSuccess: (saved) => {

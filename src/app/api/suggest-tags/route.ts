@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 import { DIETARY_TAG_OPTIONS } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -49,24 +49,18 @@ export async function POST(request: Request) {
     .join("\n\n");
 
   try {
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents: `הצע תגיות מתאימות למתכון הבא:\n\n${recipeDescription}`,
-      config: {
-        systemInstruction:
-          "אתה מומחה לסיווג מתכונים. בהינתן מתכון, בחר אילו תגיות מתוך הרשימה הסגורה שסופקה לך " +
-          "(בשדה tags, שהוא enum) מתאימות לו — לפי כשרות (בשרי/חלבי/פרווה, על סמך המרכיבים), סוג ארוחה, " +
-          "שיטת הכנה, רמת חריפות, מגבלות תזונתיות (למשל טבעוני/צמחוני/ללא גלוטן — רק אם ברור מהמרכיבים), " +
-          "והזדמנות אם רלוונטי. בחר רק תגיות שאתה בטוח בהן על סמך התוכן בפועל — עדיף פחות תגיות נכונות " +
-          "מהרבה תגיות מנחשות. בחר 'מתאים לילדים' רק אם המנה אכן ידידותית לילדים (לא חריפה, מרכיבים " +
-          "מוכרים, לא מסובכת).",
-        responseMimeType: "application/json",
-        responseJsonSchema: SCHEMA,
-      },
+      systemInstruction:
+        "אתה מומחה לסיווג מתכונים. בהינתן מתכון, בחר אילו תגיות מתוך הרשימה הסגורה שסופקה לך " +
+        "(בשדה tags, שהוא enum) מתאימות לו — לפי כשרות (בשרי/חלבי/פרווה, על סמך המרכיבים), סוג ארוחה, " +
+        "שיטת הכנה, רמת חריפות, מגבלות תזונתיות (למשל טבעוני/צמחוני/ללא גלוטן — רק אם ברור מהמרכיבים), " +
+        "והזדמנות אם רלוונטי. בחר רק תגיות שאתה בטוח בהן על סמך התוכן בפועל — עדיף פחות תגיות נכונות " +
+        "מהרבה תגיות מנחשות. בחר 'מתאים לילדים' רק אם המנה אכן ידידותית לילדים (לא חריפה, מרכיבים " +
+        "מוכרים, לא מסובכת).",
+      schema: SCHEMA,
     });
-
-    if (!response.text) throw new Error("No text content in response");
-    const result = JSON.parse(response.text) as SuggestionResult;
+    const result = JSON.parse(resultText) as SuggestionResult;
 
     // Defense in depth in case the model returns something outside the enum.
     const validTags = new Set(DIETARY_TAG_OPTIONS);

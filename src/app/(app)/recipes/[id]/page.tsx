@@ -126,6 +126,7 @@ export default function RecipeDetailPage({
           instructions: recipe.instructions,
           tags: recipe.tags,
           dietary_tags: recipe.dietary_tags,
+          made_by: recipe.made_by,
         },
       },
       { onSuccess: () => setShowImageModal(false) },
@@ -165,6 +166,12 @@ export default function RecipeDetailPage({
             {recipe.image_url ? "החלפת תמונה" : "הוספת תמונה"}
           </span>
         </div>
+
+        {recipe.made_by && (
+          <span className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+            {recipe.made_by}
+          </span>
+        )}
 
         <div
           role="button"

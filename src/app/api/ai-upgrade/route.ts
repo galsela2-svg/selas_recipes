@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 
 // See search-recipes/route.ts for why this is needed.
 export const maxDuration = 60;
@@ -76,24 +76,18 @@ export async function POST(request: Request) {
     .join("\n\n");
 
   try {
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents:
         `הנה מתכון. הצע/י:\n` +
         `1. 2-3 גרסאות יצירתיות של המתכון (וריאציות בטעם/סגנון).\n` +
         `2. תחליפים בריאים למרכיבים מסוימים (עם הסבר קצר לכל תחליף).\n` +
         `3. 2-4 טיפים לשיפור הטעם.\n\n${recipeDescription}`,
-      config: {
-        systemInstruction:
-          "אתה שף ותזונאי מומחה. תפקידך לשדרג מתכונים: להציע גרסאות יצירתיות, תחליפים בריאים " +
-          "(כגון הגברת חלבון או הפחתת פחמימות), ושיפורי טעם. ענה בעברית בלבד, בקצרה ובאופן מעשי.",
-        responseMimeType: "application/json",
-        responseJsonSchema: RESPONSE_SCHEMA,
-      },
+      systemInstruction:
+        "אתה שף ותזונאי מומחה. תפקידך לשדרג מתכונים: להציע גרסאות יצירתיות, תחליפים בריאים " +
+        "(כגון הגברת חלבון או הפחתת פחמימות), ושיפורי טעם. ענה בעברית בלבד, בקצרה ובאופן מעשי.",
+      schema: RESPONSE_SCHEMA,
     });
-
-    if (!response.text) throw new Error("No text content in response");
-    const parsed = JSON.parse(response.text) as AiUpgradeResult;
+    const parsed = JSON.parse(resultText) as AiUpgradeResult;
     return NextResponse.json(parsed);
   } catch (err) {
     const geminiError = geminiErrorResponse(

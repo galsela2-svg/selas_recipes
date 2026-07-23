@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 import { searchWeb } from "@/lib/web-search";
 import { extractOgTag, fetchHtml, fetchImage } from "@/lib/recipe-scraper";
 
@@ -16,21 +16,16 @@ const QUERY_SCHEMA = {
 // back to the raw title on any AI failure.
 async function cleanSearchQuery(title: string): Promise<string> {
   try {
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents: `שם המתכון: ${title}`,
-      config: {
-        systemInstruction:
-          "תקבל שם של מתכון, שעשוי לכלול ניסוחים שיווקיים או אישיים שלא עוזרים לחיפוש תמונה " +
-          "(סופרלטיבים כמו 'מהמם'/'הכי טעים', ביטויים כמו 'בכלום עבודה', שמות של אנשים וכו'). " +
-          "החזר שאילתת חיפוש קצרה ופשוטה שמתארת רק את המנה עצמה — מה שבאמת יביא תוצאות תמונה " +
-          "רלוונטיות. שמור על שפת המקור.",
-        responseMimeType: "application/json",
-        responseJsonSchema: QUERY_SCHEMA,
-      },
+      systemInstruction:
+        "תקבל שם של מתכון, שעשוי לכלול ניסוחים שיווקיים או אישיים שלא עוזרים לחיפוש תמונה " +
+        "(סופרלטיבים כמו 'מהמם'/'הכי טעים', ביטויים כמו 'בכלום עבודה', שמות של אנשים וכו'). " +
+        "החזר שאילתת חיפוש קצרה ופשוטה שמתארת רק את המנה עצמה — מה שבאמת יביא תוצאות תמונה " +
+        "רלוונטיות. שמור על שפת המקור.",
+      schema: QUERY_SCHEMA,
     });
-    if (!response.text) return title;
-    const parsed = JSON.parse(response.text) as { query: string };
+    const parsed = JSON.parse(resultText) as { query: string };
     return parsed.query?.trim() || title;
   } catch {
     return title;

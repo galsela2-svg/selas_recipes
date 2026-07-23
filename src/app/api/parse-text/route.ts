@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
-import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { generateStructuredJson } from "@/lib/ai-generate";
 import { findCoverImageForTitle } from "@/lib/find-cover-image";
 
 // See search-recipes/route.ts for why this is needed.
@@ -64,22 +64,16 @@ export async function POST(request: Request) {
 
   let extraction: TextExtraction;
   try {
-    const response = await gemini.models.generateContent({
-      model: GEMINI_MODEL,
+    const resultText = await generateStructuredJson({
       contents: `ארגן את המתכון הבא:\n\n${text}`,
-      config: {
-        systemInstruction:
-          "אתה מומחה לארגון מתכונים. תקבל טקסט חופשי של מתכון (שהודבק מהודעה, מסמך, וואטסאפ וכו׳), שעשוי להיות לא מסודר, " +
-          "בעברית או באנגלית. ארגן אותו לפורמט מובנה: כותרת, תיאור קצר אם רלוונטי, זמני הכנה/בישול ומספר מנות אם מוזכרים, " +
-          "ורשימות נפרדות ומסודרות של מרכיבים ושלבי הכנה — בסדר ההגיוני, גם אם בטקסט המקורי הם לא היו ברורים. " +
-          "שמור על שפת המקור. אל תמציא מידע שלא מופיע בטקסט — אם שדה לא מוזכר, החזר null או מערך ריק.",
-        responseMimeType: "application/json",
-        responseJsonSchema: TEXT_SCHEMA,
-      },
+      systemInstruction:
+        "אתה מומחה לארגון מתכונים. תקבל טקסט חופשי של מתכון (שהודבק מהודעה, מסמך, וואטסאפ וכו׳), שעשוי להיות לא מסודר, " +
+        "בעברית או באנגלית. ארגן אותו לפורמט מובנה: כותרת, תיאור קצר אם רלוונטי, זמני הכנה/בישול ומספר מנות אם מוזכרים, " +
+        "ורשימות נפרדות ומסודרות של מרכיבים ושלבי הכנה — בסדר ההגיוני, גם אם בטקסט המקורי הם לא היו ברורים. " +
+        "שמור על שפת המקור. אל תמציא מידע שלא מופיע בטקסט — אם שדה לא מוזכר, החזר null או מערך ריק.",
+      schema: TEXT_SCHEMA,
     });
-
-    if (!response.text) throw new Error("No text content in response");
-    extraction = JSON.parse(response.text) as TextExtraction;
+    extraction = JSON.parse(resultText) as TextExtraction;
   } catch (err) {
     const geminiError = geminiErrorResponse(
       err,

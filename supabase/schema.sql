@@ -39,9 +39,20 @@ alter table public.recipes
 alter table public.recipes
   add column if not exists is_favorite boolean not null default false;
 
+-- Who made/owns this recipe — one of a fixed pair of names, or "משותף"
+-- (shared) — so recipes can be filtered by who added them. Nullable:
+-- existing recipes are left unset until edited.
+alter table public.recipes
+  add column if not exists made_by text;
+
+alter table public.recipes drop constraint if exists recipes_made_by_check;
+alter table public.recipes add constraint recipes_made_by_check
+  check (made_by is null or made_by in ('ניבה', 'גל', 'משותף'));
+
 create index if not exists recipes_created_at_idx on public.recipes (created_at desc);
 create index if not exists recipes_tags_idx on public.recipes using gin (tags);
 create index if not exists recipes_dietary_tags_idx on public.recipes using gin (dietary_tags);
+create index if not exists recipes_made_by_idx on public.recipes (made_by);
 
 -- Non-negative guards on user-entered numeric fields (the client already
 -- enforces min={0}, but that's not a substitute for a DB-level constraint).

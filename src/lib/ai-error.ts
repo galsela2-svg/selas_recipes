@@ -1,5 +1,12 @@
 import { ApiError } from "@google/genai";
 
+/** True for Gemini's "you've hit your free-tier quota" error specifically —
+ * the one case worth automatically retrying against a different provider
+ * instead of just failing. */
+export function isGeminiQuotaError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 429;
+}
+
 /**
  * Maps a caught error from a Gemini API call to a clear Hebrew message, or
  * null if it's not an AI-related error (caller should fall back to its own
@@ -19,13 +26,14 @@ export function geminiErrorResponse(
     return { error: missingKeyMessage, status: 500 };
   }
 
+  if (isGeminiQuotaError(err)) {
+    return {
+      error: "חרגתם ממכסת השימוש החינמית של Gemini לרגע זה. נסו שוב בעוד כמה דקות.",
+      status: 429,
+    };
+  }
+
   if (err instanceof ApiError) {
-    if (err.status === 429) {
-      return {
-        error: "חרגתם ממכסת השימוש החינמית של Gemini לרגע זה. נסו שוב בעוד כמה דקות.",
-        status: 429,
-      };
-    }
     return { error: `שגיאה מול שירות ה-AI: ${err.message}`, status: 502 };
   }
 
