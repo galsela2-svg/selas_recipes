@@ -50,7 +50,22 @@ export function useAddPantryItem() {
         );
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic insert so the item appears instantly instead of waiting
+    // for the round trip + refetch.
+    onMutate: async (name) => {
+      const trimmed = name.trim();
+      await queryClient.cancelQueries({ queryKey: pantryKeys.all });
+      const previous = queryClient.getQueryData<PantryItem[]>(pantryKeys.all);
+      queryClient.setQueryData<PantryItem[]>(pantryKeys.all, (old) => [
+        ...(old ?? []),
+        { id: `optimistic-${Date.now()}`, name: trimmed, created_by: null, created_at: new Date().toISOString() },
+      ]);
+      return { previous };
+    },
+    onError: (_err, _name, context) => {
+      if (context) queryClient.setQueryData(pantryKeys.all, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
@@ -65,7 +80,19 @@ export function useRemovePantryItem() {
       const { error } = await supabase.from("pantry_items").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic removal — the item disappears instantly on tap.
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: pantryKeys.all });
+      const previous = queryClient.getQueryData<PantryItem[]>(pantryKeys.all);
+      queryClient.setQueryData<PantryItem[]>(pantryKeys.all, (old) =>
+        old?.filter((item) => item.id !== id),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context) queryClient.setQueryData(pantryKeys.all, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });

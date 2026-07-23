@@ -93,7 +93,20 @@ export function useToggleShoppingItem() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic update so the checkbox flips instantly on tap instead of
+    // waiting for a round trip + refetch.
+    onMutate: async ({ id, checked }) => {
+      await queryClient.cancelQueries({ queryKey: shoppingListKeys.all });
+      const previous = queryClient.getQueryData<ShoppingListItem[]>(shoppingListKeys.all);
+      queryClient.setQueryData<ShoppingListItem[]>(shoppingListKeys.all, (old) =>
+        old?.map((item) => (item.id === id ? { ...item, checked } : item)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
     },
   });
@@ -111,7 +124,20 @@ export function useDeleteShoppingItem() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // Optimistic removal — the item disappears instantly instead of
+    // lingering until the delete + refetch round trip finishes.
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: shoppingListKeys.all });
+      const previous = queryClient.getQueryData<ShoppingListItem[]>(shoppingListKeys.all);
+      queryClient.setQueryData<ShoppingListItem[]>(shoppingListKeys.all, (old) =>
+        old?.filter((item) => item.id !== id),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
     },
   });
