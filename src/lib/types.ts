@@ -57,7 +57,7 @@ export const DIETARY_TAG_GROUPS: { label: string; options: string[] }[] = [
   },
   {
     label: "שיטת הכנה",
-    options: ["אפייה", "טיגון", "בישול איטי", "גריל", "ללא בישול", "מוכן מראש"],
+    options: ["אפייה", "טיגון", "בישול איטי", "גריל", "ללא בישול"],
   },
   {
     label: "רמת חריפות",
