@@ -181,6 +181,7 @@ export default function DashboardPage() {
   const { data: cookLogs } = useAllCookLogs();
   const tags = useTags();
   const [search, setSearch] = useState("");
+  const [ingredientQuery, setIngredientQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null);
@@ -232,7 +233,8 @@ export default function DashboardPage() {
     selectedDietary.length +
     (timeBucket ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
-    (favoritesOnly ? 1 : 0);
+    (favoritesOnly ? 1 : 0) +
+    (ingredientQuery.trim() ? 1 : 0);
 
   function resetFilters() {
     setActiveTag(null);
@@ -240,6 +242,7 @@ export default function DashboardPage() {
     setTimeBucket(null);
     setMinRating(0);
     setFavoritesOnly(false);
+    setIngredientQuery("");
   }
 
   function toggleDietary(tag: string) {
@@ -278,6 +281,7 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     if (!recipes) return [];
     const query = search.trim().toLowerCase();
+    const ingredientNeedle = ingredientQuery.trim().toLowerCase();
 
     const matches = recipes.filter((recipe) => {
       const matchesSearch =
@@ -286,6 +290,9 @@ export default function DashboardPage() {
         recipe.description?.toLowerCase().includes(query) ||
         recipe.ingredients.some((i) => i.toLowerCase().includes(query)) ||
         recipe.instructions.some((i) => i.toLowerCase().includes(query));
+      const matchesIngredient =
+        !ingredientNeedle ||
+        recipe.ingredients.some((i) => i.toLowerCase().includes(ingredientNeedle));
       const matchesTag = !activeTag || recipe.tags.includes(activeTag);
       const matchesDietary = selectedDietary.every((d) => recipe.dietary_tags.includes(d));
       const matchesFavorite = !favoritesOnly || recipe.is_favorite;
@@ -294,6 +301,7 @@ export default function DashboardPage() {
       const matchesRating = minRating === 0 || (ratingByRecipeId.get(recipe.id) ?? 0) >= minRating;
       return (
         matchesSearch &&
+        matchesIngredient &&
         matchesTag &&
         matchesDietary &&
         matchesFavorite &&
@@ -306,6 +314,7 @@ export default function DashboardPage() {
   }, [
     recipes,
     search,
+    ingredientQuery,
     activeTag,
     selectedDietary,
     favoritesOnly,
@@ -319,12 +328,13 @@ export default function DashboardPage() {
   const webQuery = useMemo(() => {
     const parts: string[] = [];
     if (search.trim()) parts.push(search.trim());
+    if (ingredientQuery.trim()) parts.push(ingredientQuery.trim());
     if (activeTag) parts.push(activeTag);
     parts.push(...selectedDietary);
     const timeHint = timeBucket ? TIME_BUCKET_SEARCH_HINT[timeBucket] : undefined;
     if (timeHint) parts.push(timeHint);
     return parts.join(" ").trim();
-  }, [search, activeTag, selectedDietary, timeBucket]);
+  }, [search, ingredientQuery, activeTag, selectedDietary, timeBucket]);
 
   // Web suggestions matching the same requirements show up whenever the
   // local collection doesn't have much to offer — not only when it's
@@ -447,6 +457,15 @@ export default function DashboardPage() {
                       נקו סינון ({activeFilterCount})
                     </button>
                   )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted">חיפוש לפי מצרך</p>
+                  <Input
+                    value={ingredientQuery}
+                    onChange={(e) => setIngredientQuery(e.target.value)}
+                    placeholder="לדוגמה: לימון"
+                  />
                 </div>
 
                 {tags.length > 0 && (
