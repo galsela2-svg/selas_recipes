@@ -11,6 +11,7 @@ import {
   ImageOff,
   Pencil,
   ShoppingCart,
+  Timer,
   Trash2,
   Users,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { cn, formatMinutes } from "@/lib/utils";
 import { scaleIngredientText } from "@/lib/quantity-scaling";
+import { parseTimersInText } from "@/lib/timer-parser";
 import {
   convertIngredientLine,
   convertTemperaturesInText,
@@ -275,7 +277,15 @@ export default function RecipeDetailPage({
         </div>
 
         <div className="md:col-span-2">
-          <h2 className="mb-3 font-semibold text-foreground">הוראות הכנה</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="font-semibold text-foreground">הוראות הכנה</h2>
+            {recipe.instructions.some((step) => parseTimersInText(step).length > 0) && (
+              <p className="flex items-center gap-1 text-xs text-muted">
+                <Timer className="size-3.5 text-accent" />
+                לחצו על זמן מסומן כדי להפעיל טיימר
+              </p>
+            )}
+          </div>
           <ol className="space-y-4">
             {recipe.instructions.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm text-foreground">
