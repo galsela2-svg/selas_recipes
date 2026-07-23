@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera,
   ChefHat,
@@ -16,7 +17,14 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useDeleteRecipe, useRecipe, useToggleFavorite, useUpdateRecipe } from "@/lib/queries/recipes";
+import {
+  recipeKeys,
+  useDeleteRecipe,
+  useRecipe,
+  useToggleFavorite,
+  useUpdateRecipe,
+} from "@/lib/queries/recipes";
+import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -46,6 +54,7 @@ export default function RecipeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: recipe, isLoading } = useRecipe(id);
   const { data: pantryItems } = usePantryItems();
   const deleteRecipe = useDeleteRecipe();
@@ -84,6 +93,59 @@ export default function RecipeDetailPage({
     ? scaledIngredients.filter((i) => !i.inPantry)
     : scaledIngredients;
 
+  function buildInputWithImage(image_url: string | null) {
+    if (!recipe) return null;
+    return {
+      title: recipe.title,
+      description: recipe.description,
+      image_url,
+      source_url: recipe.source_url,
+      prep_time_minutes: recipe.prep_time_minutes,
+      cook_time_minutes: recipe.cook_time_minutes,
+      servings: recipe.servings,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+      tags: recipe.tags,
+      dietary_tags: recipe.dietary_tags,
+      made_by: recipe.made_by,
+    };
+  }
+
+  // Best-effort, silent: a recipe with no cover image gets one searched for
+  // and set automatically the first time its page is opened — covers both
+  // freshly-created recipes and older ones that never had an image. Runs
+  // once per recipe per page visit; a failed search just leaves it blank,
+  // same as today, with no error shown (this shouldn't ever feel broken).
+  const coverSearchAttempted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!recipe || recipe.image_url || coverSearchAttempted.current === recipe.id) return;
+    coverSearchAttempted.current = recipe.id;
+
+    let cancelled = false;
+    fetch("/api/find-cover-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: recipe.title }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.image_url) return;
+        // Re-check against the live cache, not the closed-over `recipe` —
+        // the user may have set an image by hand while this search was
+        // still in flight, and that manual choice should win.
+        const current = queryClient.getQueryData<Recipe>(recipeKeys.detail(recipe.id));
+        if (current && current.image_url) return;
+        const input = buildInputWithImage(body.image_url as string);
+        if (input) updateRecipe.mutate({ id: recipe.id, input });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe?.id, recipe?.image_url]);
+
   if (isLoading || !recipe) return <Spinner />;
 
   const totalTime =
@@ -110,25 +172,10 @@ export default function RecipeDetailPage({
   }
 
   function handleSaveImage() {
-    if (!recipe) return;
+    const input = buildInputWithImage(draftImageUrl.trim() || null);
+    if (!recipe || !input) return;
     updateRecipe.mutate(
-      {
-        id: recipe.id,
-        input: {
-          title: recipe.title,
-          description: recipe.description,
-          image_url: draftImageUrl.trim() || null,
-          source_url: recipe.source_url,
-          prep_time_minutes: recipe.prep_time_minutes,
-          cook_time_minutes: recipe.cook_time_minutes,
-          servings: recipe.servings,
-          ingredients: recipe.ingredients,
-          instructions: recipe.instructions,
-          tags: recipe.tags,
-          dietary_tags: recipe.dietary_tags,
-          made_by: recipe.made_by,
-        },
-      },
+      { id: recipe.id, input },
       { onSuccess: () => setShowImageModal(false) },
     );
   }
