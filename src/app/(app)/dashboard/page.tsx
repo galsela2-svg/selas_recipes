@@ -50,7 +50,7 @@ import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { RecipeShelf } from "@/components/dashboard/recipe-shelf";
-import { CategoryTiles, type CategoryTile } from "@/components/dashboard/category-tiles";
+import { CategoryTiles, CATEGORY_TILES, type CategoryTile } from "@/components/dashboard/category-tiles";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
 import { WebRecipeSuggestions } from "@/components/dashboard/web-recipe-suggestions";
 import { ImportableRecipeCard } from "@/components/search/importable-recipe-card";
@@ -75,6 +75,23 @@ function matchesTimeBucket(totalMinutes: number, bucket: TimeBucket): boolean {
   if (bucket === "medium") return totalMinutes > 30 && totalMinutes <= 60;
   return totalMinutes > 60;
 }
+
+// Category tiles above the filter drawer are shortcuts into specific
+// dietary tags / time buckets — computed once here (both inputs are static
+// module constants) so the drawer below can skip re-listing whichever ones
+// already have a tile, instead of showing the same category twice.
+const TILE_DIETARY_TAGS = new Set(
+  CATEGORY_TILES.filter((t) => t.kind === "dietary").map((t) => `${t.group}:${t.tag}`),
+);
+const FILTER_DIETARY_GROUPS = DIETARY_TAG_GROUPS.map((group) => ({
+  label: group.label,
+  options: group.options.filter((tag) => !TILE_DIETARY_TAGS.has(`${group.label}:${tag}`)),
+})).filter((group) => group.options.length > 0);
+
+const TILE_TIME_BUCKETS = new Set<TimeBucket>(
+  CATEGORY_TILES.filter((t) => t.kind === "time").map((t) => t.bucket),
+);
+const FILTER_TIME_BUCKETS = TIME_BUCKETS.filter(({ value }) => !TILE_TIME_BUCKETS.has(value));
 
 // Only "short" has a search-friendly translation — "medium"/"long" don't
 // map to a phrase people actually search recipe sites for.
@@ -258,7 +275,6 @@ export default function DashboardPage() {
   function isTileActive(tile: CategoryTile): boolean {
     if (tile.kind === "dietary") return selectedDietary.includes(tile.tag);
     if (tile.kind === "time") return timeBucket === tile.bucket;
-    if (tile.kind === "favorites") return favoritesOnly;
     return minRating === tile.threshold;
   }
 
@@ -275,8 +291,6 @@ export default function DashboardPage() {
       });
     } else if (tile.kind === "time") {
       setTimeBucket((prev) => (prev === tile.bucket ? null : tile.bucket));
-    } else if (tile.kind === "favorites") {
-      setFavoritesOnly((prev) => !prev);
     } else {
       setMinRating((prev) => (prev === tile.threshold ? 0 : tile.threshold));
     }
@@ -467,11 +481,11 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted">חיפוש לפי מצרך</p>
+                  <p className="text-xs font-medium text-muted">סינון לפי מצרך ספציפי</p>
                   <Input
                     value={ingredientQuery}
                     onChange={(e) => setIngredientQuery(e.target.value)}
-                    placeholder="לדוגמה: לימון"
+                    placeholder="רק מתכונים שמכילים... לדוגמה: לימון"
                   />
                 </div>
 
@@ -507,17 +521,19 @@ export default function DashboardPage() {
                   </FilterRow>
                 )}
 
-                <FilterRow label="זמן הכנה">
-                  {TIME_BUCKETS.map(({ value, label }) => (
-                    <Badge
-                      key={value}
-                      active={timeBucket === value}
-                      onClick={() => setTimeBucket(timeBucket === value ? null : value)}
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </FilterRow>
+                {FILTER_TIME_BUCKETS.length > 0 && (
+                  <FilterRow label="זמן הכנה">
+                    {FILTER_TIME_BUCKETS.map(({ value, label }) => (
+                      <Badge
+                        key={value}
+                        active={timeBucket === value}
+                        onClick={() => setTimeBucket(timeBucket === value ? null : value)}
+                      >
+                        {label}
+                      </Badge>
+                    ))}
+                  </FilterRow>
+                )}
 
                 <FilterRow label="דירוג מינימלי">
                   <div className="flex items-center gap-1">
@@ -539,7 +555,7 @@ export default function DashboardPage() {
                   </div>
                 </FilterRow>
 
-                {DIETARY_TAG_GROUPS.map((group) => (
+                {FILTER_DIETARY_GROUPS.map((group) => (
                   <FilterRow key={group.label} label={group.label}>
                     {group.options.map((tag) => (
                       <Badge

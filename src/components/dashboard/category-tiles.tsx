@@ -8,7 +8,6 @@ import {
   Croissant,
   Dessert,
   EggFried,
-  Heart,
   Leaf,
   Milk,
   Sandwich,
@@ -24,9 +23,12 @@ import { cn } from "@/lib/utils";
 export type CategoryTile =
   | { kind: "dietary"; tag: string; group: string; icon: LucideIcon; label: string }
   | { kind: "time"; bucket: "short"; icon: LucideIcon; label: string }
-  | { kind: "favorites"; icon: LucideIcon; label: string }
   | { kind: "rating"; threshold: number; icon: LucideIcon; label: string };
 
+// Each of these is a shortcut into a specific tag/filter that also exists in
+// the full filter drawer below — the drawer skips re-listing whichever ones
+// already have a tile here, so nothing shows up twice on screen (see
+// FILTER_DIETARY_GROUPS / FILTER_TIME_BUCKETS in dashboard/page.tsx).
 export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "dietary", tag: "ארוחת בוקר", group: "סוג ארוחה", icon: EggFried, label: "בוקר" },
   { kind: "dietary", tag: "ארוחת צהריים", group: "סוג ארוחה", icon: Sandwich, label: "צהריים" },
@@ -38,7 +40,6 @@ export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "dietary", tag: "פרווה", group: "כשרות", icon: Scale, label: "פרווה" },
   { kind: "dietary", tag: "צמחוני", group: "תזונה ואלרגנים", icon: Leaf, label: "צמחוני" },
   { kind: "time", bucket: "short", icon: Zap, label: "מהיר וקל" },
-  { kind: "favorites", icon: Heart, label: "מועדפים" },
   { kind: "rating", threshold: 8, icon: Star, label: "הכי מדורגים" },
   { kind: "dietary", tag: "לשבת וחג", group: "הזדמנות", icon: Sparkles, label: "שבת וחג" },
   { kind: "dietary", tag: "מתאים לילדים", group: "ילדים", icon: Baby, label: "ילדים" },
@@ -58,7 +59,6 @@ const TILE_COLORS: Record<string, string> = {
   פרווה: "#475569",
   צמחוני: "#15803d",
   "מהיר וקל": "#ca8a04",
-  מועדפים: "#e11d48",
   "הכי מדורגים": "#d97706",
   "שבת וחג": "#6d28d9",
   ילדים: "#0284c7",
