@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Loader2, Pencil, Sparkles } from "lucide-react";
+import { Loader2, Pencil, Sparkles, WandSparkles } from "lucide-react";
 import { DIETARY_TAG_GROUPS, type ParsedRecipe, type Recipe, type RecipeInput } from "@/lib/types";
 import { linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
@@ -112,6 +112,61 @@ export function RecipeForm({
     }
   }
 
+  const [polishingDescription, setPolishingDescription] = useState(false);
+  const [polishDescriptionError, setPolishDescriptionError] = useState<string | null>(null);
+  const [polishingInstructions, setPolishingInstructions] = useState(false);
+  const [polishInstructionsError, setPolishInstructionsError] = useState<string | null>(null);
+
+  async function polishDescription() {
+    if (!description.trim()) return;
+    setPolishingDescription(true);
+    setPolishDescriptionError(null);
+    try {
+      const res = await fetch("/api/polish-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field: "description", title, text: description }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לשפר את התיאור.");
+      setDescription(body.description as string);
+    } catch (err) {
+      setPolishDescriptionError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setPolishingDescription(false);
+    }
+  }
+
+  async function polishInstructions() {
+    const currentInstructions = linesToList(instructionsText);
+    if (currentInstructions.length === 0) return;
+    setPolishingInstructions(true);
+    setPolishInstructionsError(null);
+    try {
+      const res = await fetch("/api/polish-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          field: "instructions",
+          title,
+          ingredients,
+          instructions: currentInstructions,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לשפר את ההוראות.");
+      setInstructionsText(listToLines(body.instructions as string[]));
+      // Only fills in times that are still blank — an explicit value (from
+      // import or typed by hand) is never silently overwritten.
+      if (!prepTime && body.prep_time_minutes) setPrepTime(String(body.prep_time_minutes));
+      if (!cookTime && body.cook_time_minutes) setCookTime(String(body.cook_time_minutes));
+    } catch (err) {
+      setPolishInstructionsError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setPolishingInstructions(false);
+    }
+  }
+
   function applyParsedRecipe(parsed: ParsedRecipe) {
     setTitle(parsed.title);
     setDescription(parsed.description ?? "");
@@ -185,15 +240,29 @@ export function RecipeForm({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          תיאור
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-foreground">תיאור</label>
+          <button
+            type="button"
+            onClick={polishDescription}
+            disabled={polishingDescription || !description.trim()}
+            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80 cursor-pointer disabled:opacity-50"
+          >
+            {polishingDescription ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <WandSparkles className="size-3.5" />
+            )}
+            שיפור התיאור
+          </button>
+        </div>
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="תיאור קצר של המנה..."
           rows={2}
         />
+        {polishDescriptionError && <p className="text-xs text-danger">{polishDescriptionError}</p>}
       </div>
 
       <ImageField value={imageUrl} onChange={setImageUrl} />
@@ -278,9 +347,22 @@ export function RecipeForm({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          הוראות הכנה
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-foreground">הוראות הכנה</label>
+          <button
+            type="button"
+            onClick={polishInstructions}
+            disabled={polishingInstructions || linesToList(instructionsText).length === 0}
+            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80 cursor-pointer disabled:opacity-50"
+          >
+            {polishingInstructions ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <WandSparkles className="size-3.5" />
+            )}
+            שיפור ההוראות + הערכת זמן
+          </button>
+        </div>
         <p className="text-xs text-muted">שלב אחד בכל שורה.</p>
         <Textarea
           value={instructionsText}
@@ -288,6 +370,7 @@ export function RecipeForm({
           placeholder={"לחמם תנור ל-200 מעלות...\nלערבב את המרכיבים היבשים...\n..."}
           rows={8}
         />
+        {polishInstructionsError && <p className="text-xs text-danger">{polishInstructionsError}</p>}
       </div>
 
       <div className="space-y-1.5">

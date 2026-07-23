@@ -15,18 +15,23 @@ import { cn } from "@/lib/utils";
 export function ImageField({
   value,
   onChange,
+  defaultSearchQuery,
 }: {
   value: string;
   onChange: (url: string) => void;
+  /** Pre-fills the web-search box (e.g. the recipe's own title), so you
+   * don't have to retype it before searching. */
+  defaultSearchQuery?: string;
 }) {
   const [mode, setMode] = useState<"upload" | "search">("upload");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(defaultSearchQuery ?? "");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<ImageSearchResult[] | null>(null);
+  const [importingUrl, setImportingUrl] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,6 +66,30 @@ export function ImageField({
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
       setSearching(false);
+    }
+  }
+
+  // Picking a result doesn't use its URL directly — a lot of sites block
+  // hotlinked <img> requests from other origins, which would silently leave
+  // the recipe with a "picked" image that never actually renders. Instead
+  // the server downloads it and re-hosts it in our own storage, the same
+  // place gallery uploads land.
+  async function handlePickResult(imageUrl: string) {
+    setImportingUrl(imageUrl);
+    setError(null);
+    try {
+      const res = await fetch("/api/import-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: imageUrl }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לשמור את התמונה.");
+      onChange(body.url as string);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setImportingUrl(null);
     }
   }
 
@@ -143,21 +172,30 @@ export function ImageField({
 
           {results && results.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
-              {results.map((image) => (
-                <button
-                  key={image.imageUrl}
-                  type="button"
-                  onClick={() => onChange(image.imageUrl)}
-                  title={image.title}
-                  className={cn(
-                    "aspect-square overflow-hidden rounded-lg border-2 cursor-pointer",
-                    value === image.imageUrl ? "border-accent" : "border-transparent hover:border-accent/50",
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={image.imageUrl} alt={image.title} className="size-full object-cover" />
-                </button>
-              ))}
+              {results.map((image) => {
+                const isImporting = importingUrl === image.imageUrl;
+                return (
+                  <button
+                    key={image.imageUrl}
+                    type="button"
+                    onClick={() => handlePickResult(image.imageUrl)}
+                    disabled={isImporting}
+                    title={image.title}
+                    className={cn(
+                      "relative aspect-square overflow-hidden rounded-lg border-2 cursor-pointer disabled:cursor-wait",
+                      value === image.imageUrl ? "border-accent" : "border-transparent hover:border-accent/50",
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image.imageUrl} alt={image.title} className="size-full object-cover" />
+                    {isImporting && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <Loader2 className="size-5 animate-spin text-white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

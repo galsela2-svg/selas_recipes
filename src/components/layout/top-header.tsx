@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChefHat, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChefHat, ChevronRight, Settings } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 
 const STATIC_TITLES: Record<string, string> = {
@@ -15,6 +15,10 @@ const STATIC_TITLES: Record<string, string> = {
   "/roulette": "גלגל המתכונים",
   "/export": "ייצוא לספר מתכונים",
 };
+
+// The three bottom-tab destinations — everything else is a page you
+// navigated *into*, so it gets a back button instead of the brand icon.
+const ROOT_PATHS = new Set(["/dashboard", "/recipes/new", "/shopping-list"]);
 
 /** Mirrors whatever page you're on, instead of a fixed app name — matches
  * that page's own <h1> so the header never says something different from
@@ -32,7 +36,9 @@ function usePageTitle(pathname: string): string {
 
 export function TopHeader({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const title = usePageTitle(pathname);
+  const isRoot = ROOT_PATHS.has(pathname);
 
   return (
     <header
@@ -43,7 +49,17 @@ export function TopHeader({ userEmail }: { userEmail: string | null }) {
       }}
     >
       <div className="flex min-w-0 items-center gap-1.5">
-        <ChefHat className="size-4.5 shrink-0 text-accent" strokeWidth={1.75} />
+        {isRoot ? (
+          <ChefHat className="size-4.5 shrink-0 text-accent" strokeWidth={1.75} />
+        ) : (
+          <button
+            onClick={() => router.back()}
+            title="חזרה"
+            className="flex size-8 shrink-0 -ms-1.5 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground cursor-pointer"
+          >
+            <ChevronRight className="size-5" />
+          </button>
+        )}
         <span className="truncate font-serif text-lg font-bold text-foreground">{title}</span>
       </div>
 

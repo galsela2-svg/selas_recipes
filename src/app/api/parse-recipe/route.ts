@@ -10,6 +10,7 @@ import {
 } from "@/lib/recipe-scraper";
 import { createClient } from "@/lib/supabase/server";
 import { cleanRecipeDescription } from "@/lib/clean-description";
+import { findCoverImageForTitle } from "@/lib/find-cover-image";
 
 // See search-recipes/route.ts for why this is needed — external page
 // fetches here can otherwise run past Vercel's platform default timeout.
@@ -111,6 +112,12 @@ export async function POST(request: Request) {
   // AI failure so link import doesn't depend on a configured API key.
   if (recipe.description) {
     recipe = { ...recipe, description: await cleanRecipeDescription(recipe.title, recipe.description) };
+  }
+
+  // The page itself had no usable cover image (no og:image, no JSON-LD
+  // image) — search for one instead of leaving the recipe photo-less.
+  if (!recipe.image_url) {
+    recipe = { ...recipe, image_url: await findCoverImageForTitle(recipe.title, supabase) };
   }
 
   return NextResponse.json(recipe);

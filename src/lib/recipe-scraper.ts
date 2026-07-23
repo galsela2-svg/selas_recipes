@@ -86,8 +86,10 @@ const MAX_REDIRECTS = 5;
 
 // Validates every hop (initial URL and every redirect target) against
 // private/internal addresses before connecting, since a redirect can point
-// anywhere regardless of how trusted the original URL looked.
-export async function fetchHtml(rawUrl: string): Promise<string> {
+// anywhere regardless of how trusted the original URL looked. Shared by
+// fetchHtml and fetchImage below — they only differ in how they read the
+// body once a safe response comes back.
+async function resolveSafeResponse(rawUrl: string, extraHeaders?: HeadersInit): Promise<Response> {
   let currentUrl = rawUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -98,7 +100,7 @@ export async function fetchHtml(rawUrl: string): Promise<string> {
     await assertPublicHostname(url.hostname);
 
     const response = await fetch(url.toString(), {
-      headers: BROWSER_LIKE_HEADERS,
+      headers: { ...BROWSER_LIKE_HEADERS, ...extraHeaders },
       redirect: "manual",
       signal: AbortSignal.timeout(12_000),
     });
@@ -117,10 +119,31 @@ export async function fetchHtml(rawUrl: string): Promise<string> {
       throw new FetchFailedError(response.status);
     }
 
-    return response.text();
+    return response;
   }
 
   throw new FetchFailedError(310);
+}
+
+export async function fetchHtml(rawUrl: string): Promise<string> {
+  const response = await resolveSafeResponse(rawUrl);
+  return response.text();
+}
+
+// Many sites block hotlinked <img> requests that don't come from their own
+// page (checking Referer/Origin), so a picked-image URL often silently
+// fails to render if used as-is. Fetching it server-side (with a Referer
+// matching its own origin, which satisfies most of these checks) and
+// re-hosting the bytes in our own storage sidesteps that entirely.
+export async function fetchImage(
+  rawUrl: string,
+): Promise<{ data: ArrayBuffer; contentType: string }> {
+  const response = await resolveSafeResponse(rawUrl, { Referer: new URL(rawUrl).origin });
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.startsWith("image/")) {
+    throw new FetchFailedError(415);
+  }
+  return { data: await response.arrayBuffer(), contentType };
 }
 
 export function stripHtml(value: string): string {

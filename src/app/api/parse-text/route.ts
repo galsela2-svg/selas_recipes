@@ -3,6 +3,7 @@ import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
+import { findCoverImageForTitle } from "@/lib/find-cover-image";
 
 // See search-recipes/route.ts for why this is needed.
 export const maxDuration = 60;
@@ -99,10 +100,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const title = extraction.title || "מתכון מטקסט";
+
   const recipe: ParsedRecipe = {
-    title: extraction.title || "מתכון מטקסט",
+    title,
     description: extraction.description,
-    image_url: null,
+    image_url: await findCoverImageForTitle(title, supabase),
     source_url: "",
     prep_time_minutes: extraction.prep_time_minutes,
     cook_time_minutes: extraction.cook_time_minutes,

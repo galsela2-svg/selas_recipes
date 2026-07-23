@@ -192,7 +192,11 @@ export default function RecipeDetailPage({
 
       <Modal open={showImageModal} onClose={() => setShowImageModal(false)} title="תמונת המתכון">
         <div className="space-y-4">
-          <ImageField value={draftImageUrl} onChange={setDraftImageUrl} />
+          <ImageField
+            value={draftImageUrl}
+            onChange={setDraftImageUrl}
+            defaultSearchQuery={recipe.title}
+          />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowImageModal(false)}>
               ביטול
