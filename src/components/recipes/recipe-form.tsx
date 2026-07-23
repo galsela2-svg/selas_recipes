@@ -13,6 +13,7 @@ import {
 } from "@/lib/types";
 import { cn, linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
+import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -54,6 +55,7 @@ export function RecipeForm({
   submitting?: boolean;
 }) {
   const { showToast } = useToast();
+  const defaultOwner = useDefaultOwner();
   const [pendingImport] = useState(() => readPendingImport(Boolean(initialRecipe)));
   // New, empty recipes start collapsed to just the import panel — most
   // recipes here come from pasting an Instagram/recipe link, not typing.
@@ -64,6 +66,11 @@ export function RecipeForm({
   );
 
   const [madeBy, setMadeBy] = useState<RecipeOwner | null>(initialRecipe?.made_by ?? null);
+  const [madeByTouched, setMadeByTouched] = useState(false);
+  // Defaults a brand-new recipe's owner to whoever is signed in — only
+  // until the user picks something themselves (including "לא צוין"). Derived
+  // at render time (not via an effect) since defaultOwner loads async.
+  const effectiveMadeBy = !initialRecipe && !madeByTouched ? (defaultOwner ?? madeBy) : madeBy;
   const [title, setTitle] = useState(
     initialRecipe?.title ?? pendingImport?.title ?? "",
   );
@@ -340,7 +347,7 @@ export function RecipeForm({
       instructions: linesToList(instructionsText),
       tags,
       dietary_tags: dietaryTags,
-      made_by: madeBy,
+      made_by: effectiveMadeBy,
     });
   }
 
@@ -373,10 +380,13 @@ export function RecipeForm({
             <button
               key={owner}
               type="button"
-              onClick={() => setMadeBy((prev) => (prev === owner ? null : owner))}
+              onClick={() => {
+                setMadeByTouched(true);
+                setMadeBy(effectiveMadeBy === owner ? null : owner);
+              }}
               className={cn(
                 "rounded-lg border px-2 py-2 text-sm font-medium transition-colors cursor-pointer",
-                madeBy === owner
+                effectiveMadeBy === owner
                   ? "border-accent bg-accent/15 text-accent"
                   : "border-border text-muted hover:border-accent/50",
               )}
@@ -386,10 +396,13 @@ export function RecipeForm({
           ))}
           <button
             type="button"
-            onClick={() => setMadeBy(null)}
+            onClick={() => {
+              setMadeByTouched(true);
+              setMadeBy(null);
+            }}
             className={cn(
               "rounded-lg border px-2 py-2 text-sm font-medium transition-colors cursor-pointer",
-              madeBy === null
+              effectiveMadeBy === null
                 ? "border-accent bg-accent/15 text-accent"
                 : "border-border text-muted hover:border-accent/50",
             )}

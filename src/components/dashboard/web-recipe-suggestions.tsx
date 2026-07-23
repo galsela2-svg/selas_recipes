@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, Globe, Loader2 } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { useCreateRecipe } from "@/lib/queries/recipes";
+import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
 import { ImportableRecipeCard } from "@/components/search/importable-recipe-card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
   const router = useRouter();
   const { showToast } = useToast();
   const createRecipe = useCreateRecipe();
+  const defaultOwner = useDefaultOwner();
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export function WebRecipeSuggestions({ query }: { query: string }) {
         instructions: recipe.instructions,
         tags: [],
         dietary_tags: [],
-        made_by: null,
+        made_by: defaultOwner,
       },
       {
         onSuccess: (saved) => {

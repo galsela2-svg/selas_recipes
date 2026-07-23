@@ -46,6 +46,7 @@ import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { DIETARY_TAG_GROUPS, RECIPE_OWNERS, type ParsedRecipe, type RecipeOwner } from "@/lib/types";
 import { buildDiscoveryQuery } from "@/lib/taste-profile";
+import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { RecipeShelf } from "@/components/dashboard/recipe-shelf";
@@ -626,6 +627,7 @@ function WebSearchMode() {
   const { showToast } = useToast();
   const { data: myRecipes, isLoading: myRecipesLoading } = useRecipes();
   const createRecipe = useCreateRecipe();
+  const defaultOwner = useDefaultOwner();
   const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -742,7 +744,7 @@ function WebSearchMode() {
         instructions: recipe.instructions,
         tags: [],
         dietary_tags: [],
-        made_by: null,
+        made_by: defaultOwner,
       },
       {
         onSuccess: (saved) => {
