@@ -41,7 +41,7 @@ export const CATEGORY_TILES: CategoryTile[] = [
   { kind: "favorites", icon: Heart, label: "מועדפים" },
   { kind: "rating", threshold: 8, icon: Star, label: "הכי מדורגים" },
   { kind: "dietary", tag: "לשבת וחג", group: "הזדמנות", icon: Sparkles, label: "שבת וחג" },
-  { kind: "dietary", tag: "עד גיל שנתיים", group: "תינוקות", icon: Baby, label: "תינוקות" },
+  { kind: "dietary", tag: "מתאים לילדים", group: "ילדים", icon: Baby, label: "ילדים" },
 ];
 
 // Flat design on purpose: the color lives only in the icon itself (a solid
@@ -61,7 +61,7 @@ const TILE_COLORS: Record<string, string> = {
   מועדפים: "#e11d48",
   "הכי מדורגים": "#d97706",
   "שבת וחג": "#6d28d9",
-  תינוקות: "#0284c7",
+  ילדים: "#0284c7",
 };
 
 export function CategoryTiles({

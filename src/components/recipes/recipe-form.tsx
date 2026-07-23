@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Loader2, Pencil, Sparkles, WandSparkles } from "lucide-react";
-import { DIETARY_TAG_GROUPS, type ParsedRecipe, type Recipe, type RecipeInput } from "@/lib/types";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { Loader2, Pencil, Plus, Sparkles, WandSparkles } from "lucide-react";
+import {
+  DIETARY_TAG_GROUPS,
+  DIETARY_TAG_OPTIONS,
+  type ParsedRecipe,
+  type Recipe,
+  type RecipeInput,
+} from "@/lib/types";
 import { linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
 import { Button } from "@/components/ui/button";
@@ -13,6 +19,8 @@ import { ParseUrlPanel } from "@/components/recipes/parse-url-panel";
 import { ImageField } from "@/components/recipes/image-field";
 import { IngredientListInput } from "@/components/recipes/ingredient-list-input";
 import { NumberStepper } from "@/components/ui/number-stepper";
+
+const CUSTOM_TAGS_GROUP = "תגיות נוספות";
 
 // Picks up a recipe handed off from the web-search results page, if any.
 // Reading + clearing sessionStorage here (inside a lazy useState
@@ -83,6 +91,35 @@ export function RecipeForm({
   const [suggestingTags, setSuggestingTags] = useState(false);
   const [suggestTagsError, setSuggestTagsError] = useState<string | null>(null);
 
+  // Custom tags added via the "+" on a group — kept per-group so they show
+  // up (and stay toggleable) right where they were added instead of
+  // vanishing the moment they're deselected. A recipe's own dietary_tags
+  // is flat with no group info, so an existing recipe's already-custom
+  // tags (added in an earlier session) land in a catch-all group instead
+  // of trying to guess which one they came from.
+  const [customTagsByGroup, setCustomTagsByGroup] = useState<Record<string, string[]>>(() => {
+    const unknown = (initialRecipe?.dietary_tags ?? []).filter((t) => !DIETARY_TAG_OPTIONS.includes(t));
+    const initial: Record<string, string[]> = {};
+    if (unknown.length > 0) initial[CUSTOM_TAGS_GROUP] = unknown;
+    return initial;
+  });
+  const [addingToGroup, setAddingToGroup] = useState<string | null>(null);
+  const [newTagDraft, setNewTagDraft] = useState("");
+
+  function addCustomTag(groupLabel: string) {
+    const trimmed = newTagDraft.trim();
+    setAddingToGroup(null);
+    setNewTagDraft("");
+    if (!trimmed) return;
+
+    setCustomTagsByGroup((prev) => {
+      const existing = prev[groupLabel] ?? [];
+      if (existing.includes(trimmed)) return prev;
+      return { ...prev, [groupLabel]: [...existing, trimmed] };
+    });
+    setDietaryTags((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+  }
+
   // Suggests tags from the given recipe content and merges them into
   // whatever's already selected — never removes a tag the user picked
   // themselves, just adds the ones AI thinks apply.
@@ -117,15 +154,20 @@ export function RecipeForm({
   const [polishingInstructions, setPolishingInstructions] = useState(false);
   const [polishInstructionsError, setPolishInstructionsError] = useState<string | null>(null);
 
-  async function polishDescription() {
-    if (!description.trim()) return;
+  // Both take their inputs as arguments (rather than reading component
+  // state) so they can be fired immediately from applyParsedRecipe with
+  // freshly-parsed data, before the corresponding setState calls have
+  // actually landed — and reused as-is by the manual buttons, which just
+  // pass the current state values in.
+  async function polishDescription(text: string, titleArg: string) {
+    if (!text.trim()) return;
     setPolishingDescription(true);
     setPolishDescriptionError(null);
     try {
       const res = await fetch("/api/polish-recipe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field: "description", title, text: description }),
+        body: JSON.stringify({ field: "description", title: titleArg, text }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "לא הצלחנו לשפר את התיאור.");
@@ -137,9 +179,14 @@ export function RecipeForm({
     }
   }
 
-  async function polishInstructions() {
-    const currentInstructions = linesToList(instructionsText);
-    if (currentInstructions.length === 0) return;
+  async function polishInstructions(
+    instructionsList: string[],
+    ingredientsList: string[],
+    titleArg: string,
+    currentPrepTime: string,
+    currentCookTime: string,
+  ) {
+    if (instructionsList.length === 0) return;
     setPolishingInstructions(true);
     setPolishInstructionsError(null);
     try {
@@ -148,9 +195,9 @@ export function RecipeForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           field: "instructions",
-          title,
-          ingredients,
-          instructions: currentInstructions,
+          title: titleArg,
+          ingredients: ingredientsList,
+          instructions: instructionsList,
         }),
       });
       const body = await res.json();
@@ -158,8 +205,8 @@ export function RecipeForm({
       setInstructionsText(listToLines(body.instructions as string[]));
       // Only fills in times that are still blank — an explicit value (from
       // import or typed by hand) is never silently overwritten.
-      if (!prepTime && body.prep_time_minutes) setPrepTime(String(body.prep_time_minutes));
-      if (!cookTime && body.cook_time_minutes) setCookTime(String(body.cook_time_minutes));
+      if (!currentPrepTime && body.prep_time_minutes) setPrepTime(String(body.prep_time_minutes));
+      if (!currentCookTime && body.cook_time_minutes) setCookTime(String(body.cook_time_minutes));
     } catch (err) {
       setPolishInstructionsError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
@@ -179,14 +226,26 @@ export function RecipeForm({
     setInstructionsText(parsed.instructions.join("\n"));
     setManualExpanded(true);
 
-    // Auto-suggest right after a successful import — the content is
-    // already there, so there's no reason to make this an extra click.
+    // Auto-run right after a successful import — tag suggestions, and
+    // description/instructions polish — so there's no extra click before
+    // the recipe is in good shape. Each runs independently and won't block
+    // the others.
     suggestTags({
       title: parsed.title,
       description: parsed.description ?? "",
       ingredients: parsed.ingredients,
       instructions: parsed.instructions,
     });
+    if (parsed.description) polishDescription(parsed.description, parsed.title);
+    if (parsed.instructions.length > 0) {
+      polishInstructions(
+        parsed.instructions,
+        parsed.ingredients,
+        parsed.title,
+        parsed.prep_time_minutes?.toString() ?? "",
+        parsed.cook_time_minutes?.toString() ?? "",
+      );
+    }
   }
 
   function handleSubmit(e: FormEvent) {
@@ -244,7 +303,7 @@ export function RecipeForm({
           <label className="text-sm font-medium text-foreground">תיאור</label>
           <button
             type="button"
-            onClick={polishDescription}
+            onClick={() => polishDescription(description, title)}
             disabled={polishingDescription || !description.trim()}
             className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80 cursor-pointer disabled:opacity-50"
           >
@@ -318,22 +377,64 @@ export function RecipeForm({
           </button>
         </div>
         {suggestTagsError && <p className="text-xs text-danger">{suggestTagsError}</p>}
-        {DIETARY_TAG_GROUPS.map((group) => (
-          <div key={group.label} className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">{group.label}</label>
-            <div className="flex flex-wrap gap-1.5">
-              {group.options.map((tag) => (
-                <Badge
-                  key={tag}
-                  active={dietaryTags.includes(tag)}
-                  onClick={() => toggleDietaryTag(tag)}
-                >
-                  {tag}
-                </Badge>
-              ))}
+        {[...DIETARY_TAG_GROUPS, { label: CUSTOM_TAGS_GROUP, options: [] as string[] }].map((group) => {
+          const extra = (customTagsByGroup[group.label] ?? []).filter(
+            (t) => !group.options.includes(t),
+          );
+          const allOptions = [...group.options, ...extra];
+          const isAdding = addingToGroup === group.label;
+
+          return (
+            <div key={group.label} className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">{group.label}</label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {allOptions.map((tag) => (
+                  <Badge
+                    key={tag}
+                    active={dietaryTags.includes(tag)}
+                    onClick={() => toggleDietaryTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+
+                {isAdding ? (
+                  <span className="inline-flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={newTagDraft}
+                      onChange={(e) => setNewTagDraft(e.target.value)}
+                      onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomTag(group.label);
+                        } else if (e.key === "Escape") {
+                          setAddingToGroup(null);
+                          setNewTagDraft("");
+                        }
+                      }}
+                      onBlur={() => addCustomTag(group.label)}
+                      placeholder="תגית חדשה..."
+                      className="h-7 w-28 rounded-full border border-accent/50 bg-surface px-2.5 text-xs text-foreground outline-none"
+                    />
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingToGroup(group.label);
+                      setNewTagDraft("");
+                    }}
+                    title={`הוספת תגית ל${group.label}`}
+                    className="flex size-6 items-center justify-center rounded-full border border-dashed border-border text-muted transition-colors hover:border-accent/50 hover:text-accent cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="space-y-1.5">
@@ -351,7 +452,7 @@ export function RecipeForm({
           <label className="text-sm font-medium text-foreground">הוראות הכנה</label>
           <button
             type="button"
-            onClick={polishInstructions}
+            onClick={() => polishInstructions(linesToList(instructionsText), ingredients, title, prepTime, cookTime)}
             disabled={polishingInstructions || linesToList(instructionsText).length === 0}
             className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80 cursor-pointer disabled:opacity-50"
           >
