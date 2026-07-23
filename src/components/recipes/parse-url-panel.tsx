@@ -1,17 +1,16 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import { Camera, Clapperboard, Link2, NotebookPen } from "lucide-react";
+import { useState, type KeyboardEvent } from "react";
+import { Clapperboard, Link2, NotebookPen } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type ImportMode = "url" | "photo" | "text";
+type ImportMode = "url" | "text";
 
 const MODE_TABS: { id: ImportMode; label: string; icon: typeof Link2 }[] = [
   { id: "url", label: "קישור", icon: Link2 },
-  { id: "photo", label: "תמונה", icon: Camera },
   { id: "text", label: "טקסט", icon: NotebookPen },
 ];
 
@@ -21,18 +20,6 @@ function isInstagramUrl(raw: string): boolean {
   } catch {
     return false;
   }
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.slice(result.indexOf(",") + 1));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }
 
 export function ParseUrlPanel({
@@ -47,9 +34,6 @@ export function ParseUrlPanel({
 
   const [url, setUrl] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
-
-  const [photoLoading, setPhotoLoading] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [textDraft, setTextDraft] = useState("");
   const [textLoading, setTextLoading] = useState(false);
@@ -104,41 +88,14 @@ export function ParseUrlPanel({
         setNotice(
           "מילאנו את הכותרת והתמונה, אבל לא הצלחנו לזהות מרכיבים או הוראות הכנה. השלימו אותם ידנית למטה.",
         );
+      } else {
+        setNoticeTone("success");
+        setNotice("המתכון פוענח בהצלחה! כדאי לעבור עליו ולוודא שהוא מדויק.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
       setUrlLoading(false);
-    }
-  }
-
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    setPhotoLoading(true);
-    setError(null);
-    setNotice(null);
-    setNoticeTone("info");
-
-    try {
-      const base64 = await readFileAsBase64(file);
-      const res = await fetch("/api/parse-photo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, media_type: file.type }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "לא הצלחנו לזהות מתכון בתמונה.");
-
-      const parsed = body as ParsedRecipe;
-      onParsed(parsed);
-      setNotice("סרקנו את התמונה וחילצנו מתכון — כדאי לעבור עליו ולוודא שהוא מדויק.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "משהו השתבש.");
-    } finally {
-      setPhotoLoading(false);
     }
   }
 
@@ -182,11 +139,11 @@ export function ParseUrlPanel({
           <p className="font-serif text-lg font-bold leading-tight text-foreground">
             יבוא מתכון
           </p>
-          <p className="text-xs text-muted">מקישור (כולל רילז), מתמונה, או מטקסט חופשי</p>
+          <p className="text-xs text-muted">מקישור (כולל רילז) או מטקסט חופשי</p>
         </div>
       </div>
 
-      <div className="mb-3 grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
+      <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-surface p-1">
         {MODE_TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -218,31 +175,20 @@ export function ParseUrlPanel({
             }}
             placeholder="instagram.com/reel/... או קישור לכל אתר מתכונים"
           />
-          <Button type="button" size="lg" className="w-full" loading={urlLoading} onClick={handleUrlSubmit}>
+          <p className="text-xs text-muted">
+            הדביקו קישור לרילז/פוסט באינסטגרם או לעמוד מתכון בכל אתר בישול.
+          </p>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            loading={urlLoading}
+            disabled={!url.trim()}
+            onClick={handleUrlSubmit}
+          >
             <Link2 className="size-4" />
             פענוח המתכון
           </Button>
-        </div>
-      )}
-
-      {mode === "photo" && (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => photoInputRef.current?.click()}
-            disabled={photoLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-accent/40 py-6 text-sm font-medium text-muted transition-colors hover:border-accent/70 hover:text-foreground cursor-pointer disabled:opacity-50"
-          >
-            <Camera className="size-5" />
-            {photoLoading ? "סורק תמונה..." : "צלמו או בחרו עמוד מספר בישול"}
-          </button>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="hidden"
-          />
         </div>
       )}
 
