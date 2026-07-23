@@ -1,13 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
-import { anthropicErrorResponse } from "@/lib/ai-error";
+import { geminiErrorResponse } from "@/lib/ai-error";
+import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 
 // See search-recipes/route.ts for why this is needed.
 export const maxDuration = 60;
-
-const client = new Anthropic();
 
 const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -66,43 +64,37 @@ export async function POST(request: Request) {
 
   let extraction: PhotoExtraction;
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: PHOTO_SCHEMA },
-      },
-      system:
-        "אתה מומחה לחילוץ מתכונים מתמונות — עמוד מספר בישול, כרטיסיית מתכון כתובה ביד, פתק מודפס, וכו'. " +
-        "התמונה עשויה להיות בעברית או באנגלית — שמור על שפת המקור בפלט. " +
-        "חלץ כותרת, תיאור קצר אם יש, זמני הכנה/בישול ומספר מנות אם מצוינים, וכל רשימת המרכיבים ושלבי ההכנה במדויק כפי שהם מופיעים. " +
-        "אם חלק מהשדות לא מופיעים בתמונה, החזר null או מערך ריק במקום לנחש.",
-      messages: [
+    const response = await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [
         {
           role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType as "image/jpeg", data: image },
-            },
-            { type: "text", text: "חלץ את המתכון מהתמונה הזו." },
+          parts: [
+            { inlineData: { mimeType: mediaType, data: image } },
+            { text: "חלץ את המתכון מהתמונה הזו." },
           ],
         },
       ],
+      config: {
+        systemInstruction:
+          "אתה מומחה לחילוץ מתכונים מתמונות — עמוד מספר בישול, כרטיסיית מתכון כתובה ביד, פתק מודפס, וכו'. " +
+          "התמונה עשויה להיות בעברית או באנגלית — שמור על שפת המקור בפלט. " +
+          "חלץ כותרת, תיאור קצר אם יש, זמני הכנה/בישול ומספר מנות אם מצוינים, וכל רשימת המרכיבים ושלבי ההכנה במדויק כפי שהם מופיעים. " +
+          "אם חלק מהשדות לא מופיעים בתמונה, החזר null או מערך ריק במקום לנחש.",
+        responseMimeType: "application/json",
+        responseJsonSchema: PHOTO_SCHEMA,
+      },
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") throw new Error("No text content");
-    extraction = JSON.parse(textBlock.text) as PhotoExtraction;
+    if (!response.text) throw new Error("No text content in response");
+    extraction = JSON.parse(response.text) as PhotoExtraction;
   } catch (err) {
-    const anthropicError = anthropicErrorResponse(
+    const geminiError = geminiErrorResponse(
       err,
-      "סריקת מתכון מתמונה דורשת הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+      "סריקת מתכון מתמונה דורשת הגדרת משתנה הסביבה GEMINI_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
     );
-    if (anthropicError) {
-      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
+    if (geminiError) {
+      return NextResponse.json({ error: geminiError.error }, { status: geminiError.status });
     }
     return NextResponse.json({ error: "לא הצלחנו לנתח את התמונה." }, { status: 502 });
   }

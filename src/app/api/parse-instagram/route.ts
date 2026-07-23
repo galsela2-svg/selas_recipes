@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import {
   FetchBlockedError,
@@ -10,14 +9,13 @@ import {
 import { searchWeb } from "@/lib/web-search";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
-import { anthropicErrorResponse } from "@/lib/ai-error";
+import { geminiErrorResponse } from "@/lib/ai-error";
+import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 
 // See search-recipes/route.ts for why this is needed — the Instagram fetch,
 // the AI extraction call, and the web-search fallback can together run past
 // Vercel's platform default timeout.
 export const maxDuration = 60;
-
-const client = new Anthropic();
 
 const CAPTION_SCHEMA = {
   type: "object",
@@ -155,36 +153,28 @@ export async function POST(request: Request) {
 
   let extraction: CaptionExtraction;
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 2048,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: CAPTION_SCHEMA },
+    const response = await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: `כותרת הפוסט: ${igTitle}\n\nכיתוב:\n${caption}`,
+      config: {
+        systemInstruction:
+          "אתה מומחה לחילוץ מתכונים מכיתובים של רשתות חברתיות. הכיתוב עשוי להיות בעברית או באנגלית. " +
+          "אם הכיתוב מכיל מתכון אמיתי (רכיבים ו/או שלבי הכנה), חלץ אותו במדויק. " +
+          "אם הכיתוב לא מכיל מתכון ברור (רק תיאור/האשטגים/פרסום), החזר found_recipe=false והצע שאילתת חיפוש טובה.",
+        responseMimeType: "application/json",
+        responseJsonSchema: CAPTION_SCHEMA,
       },
-      system:
-        "אתה מומחה לחילוץ מתכונים מכיתובים של רשתות חברתיות. הכיתוב עשוי להיות בעברית או באנגלית. " +
-        "אם הכיתוב מכיל מתכון אמיתי (רכיבים ו/או שלבי הכנה), חלץ אותו במדויק. " +
-        "אם הכיתוב לא מכיל מתכון ברור (רק תיאור/האשטגים/פרסום), החזר found_recipe=false והצע שאילתת חיפוש טובה.",
-      messages: [
-        {
-          role: "user",
-          content: `כותרת הפוסט: ${igTitle}\n\nכיתוב:\n${caption}`,
-        },
-      ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") throw new Error("No text content");
-    extraction = JSON.parse(textBlock.text) as CaptionExtraction;
+    if (!response.text) throw new Error("No text content in response");
+    extraction = JSON.parse(response.text) as CaptionExtraction;
   } catch (err) {
-    const anthropicError = anthropicErrorResponse(
+    const geminiError = geminiErrorResponse(
       err,
-      "פענוח מאינסטגרם דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+      "פענוח מאינסטגרם דורש הגדרת משתנה הסביבה GEMINI_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
     );
-    if (anthropicError) {
-      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
+    if (geminiError) {
+      return NextResponse.json({ error: geminiError.error }, { status: geminiError.status });
     }
     return NextResponse.json({ error: "לא הצלחנו לנתח את הכיתוב." }, { status: 502 });
   }

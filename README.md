@@ -46,15 +46,16 @@ cp .env.local.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 
-# Optional — required only for "AI Upgrade" and Instagram import
-ANTHROPIC_API_KEY=sk-ant-...
+# Optional — required only for "AI Upgrade", Instagram import, photo scan,
+# and text-paste import
+GEMINI_API_KEY=...
 ```
 
 Get a Supabase URL/key from **Settings -> API** in the Supabase dashboard, and
-an Anthropic key from [console.anthropic.com](https://console.anthropic.com/settings/keys).
-Without `ANTHROPIC_API_KEY`, every other feature works normally — the two
-AI-backed features just show a clear "add your API key" message instead of
-failing silently.
+a free Gemini key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+(no credit card required). Without `GEMINI_API_KEY`, every other feature works
+normally — the AI-backed features just show a clear "add your API key"
+message instead of failing silently.
 
 ## 3. Run the app
 

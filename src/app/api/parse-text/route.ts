@@ -1,13 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
-import { anthropicErrorResponse } from "@/lib/ai-error";
+import { geminiErrorResponse } from "@/lib/ai-error";
+import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 
 // See search-recipes/route.ts for why this is needed.
 export const maxDuration = 60;
-
-const client = new Anthropic();
 
 const TEXT_SCHEMA = {
   type: "object",
@@ -65,37 +63,29 @@ export async function POST(request: Request) {
 
   let extraction: TextExtraction;
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: TEXT_SCHEMA },
+    const response = await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: `ארגן את המתכון הבא:\n\n${text}`,
+      config: {
+        systemInstruction:
+          "אתה מומחה לארגון מתכונים. תקבל טקסט חופשי של מתכון (שהודבק מהודעה, מסמך, וואטסאפ וכו׳), שעשוי להיות לא מסודר, " +
+          "בעברית או באנגלית. ארגן אותו לפורמט מובנה: כותרת, תיאור קצר אם רלוונטי, זמני הכנה/בישול ומספר מנות אם מוזכרים, " +
+          "ורשימות נפרדות ומסודרות של מרכיבים ושלבי הכנה — בסדר ההגיוני, גם אם בטקסט המקורי הם לא היו ברורים. " +
+          "שמור על שפת המקור. אל תמציא מידע שלא מופיע בטקסט — אם שדה לא מוזכר, החזר null או מערך ריק.",
+        responseMimeType: "application/json",
+        responseJsonSchema: TEXT_SCHEMA,
       },
-      system:
-        "אתה מומחה לארגון מתכונים. תקבל טקסט חופשי של מתכון (שהודבק מהודעה, מסמך, וואטסאפ וכו׳), שעשוי להיות לא מסודר, " +
-        "בעברית או באנגלית. ארגן אותו לפורמט מובנה: כותרת, תיאור קצר אם רלוונטי, זמני הכנה/בישול ומספר מנות אם מוזכרים, " +
-        "ורשימות נפרדות ומסודרות של מרכיבים ושלבי הכנה — בסדר ההגיוני, גם אם בטקסט המקורי הם לא היו ברורים. " +
-        "שמור על שפת המקור. אל תמציא מידע שלא מופיע בטקסט — אם שדה לא מוזכר, החזר null או מערך ריק.",
-      messages: [
-        {
-          role: "user",
-          content: `ארגן את המתכון הבא:\n\n${text}`,
-        },
-      ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") throw new Error("No text content");
-    extraction = JSON.parse(textBlock.text) as TextExtraction;
+    if (!response.text) throw new Error("No text content in response");
+    extraction = JSON.parse(response.text) as TextExtraction;
   } catch (err) {
-    const anthropicError = anthropicErrorResponse(
+    const geminiError = geminiErrorResponse(
       err,
-      "ארגון מתכון מטקסט דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+      "ארגון מתכון מטקסט דורש הגדרת משתנה הסביבה GEMINI_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
     );
-    if (anthropicError) {
-      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
+    if (geminiError) {
+      return NextResponse.json({ error: geminiError.error }, { status: geminiError.status });
     }
     return NextResponse.json({ error: "לא הצלחנו לנתח את הטקסט." }, { status: 502 });
   }

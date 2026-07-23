@@ -1,35 +1,33 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { ApiError } from "@google/genai";
 
 /**
- * A valid ANTHROPIC_API_KEY still fails with a plain APIError (not
- * AuthenticationError) when the account has no credit — easy to mistake for
- * a generic/unexplained failure otherwise.
+ * Maps a caught error from a Gemini API call to a clear Hebrew message, or
+ * null if it's not an AI-related error (caller should fall back to its own
+ * generic message in that case).
  */
-function isLowBalanceError(err: unknown): boolean {
-  return err instanceof Anthropic.APIError && /credit balance/i.test(err.message);
-}
-
-/**
- * Maps a caught error from an Anthropic API call to a clear Hebrew message,
- * or null if it's not an Anthropic-related error (caller should fall back
- * to its own generic message in that case).
- */
-export function anthropicErrorResponse(
+export function geminiErrorResponse(
   err: unknown,
   missingKeyMessage: string,
 ): { error: string; status: number } | null {
-  if (err instanceof Anthropic.AuthenticationError) {
+  const message = err instanceof Error ? err.message : "";
+
+  // A missing/invalid GEMINI_API_KEY surfaces as a 400 ApiError with "API
+  // key not valid" in the message (or, if the SDK fails before even making
+  // a request, a plain Error with the same wording) — not a distinct error
+  // type, so this has to match on the message text.
+  if (/api key/i.test(message)) {
     return { error: missingKeyMessage, status: 500 };
   }
-  if (isLowBalanceError(err)) {
-    return {
-      error:
-        "יתרת הקרדיט בחשבון ה-Anthropic נמוכה מדי. היכנסו ל-console.anthropic.com ← Plans & Billing כדי להוסיף קרדיט.",
-      status: 402,
-    };
-  }
-  if (err instanceof Anthropic.APIError) {
+
+  if (err instanceof ApiError) {
+    if (err.status === 429) {
+      return {
+        error: "חרגתם ממכסת השימוש החינמית של Gemini לרגע זה. נסו שוב בעוד כמה דקות.",
+        status: 429,
+      };
+    }
     return { error: `שגיאה מול שירות ה-AI: ${err.message}`, status: 502 };
   }
+
   return null;
 }

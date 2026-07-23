@@ -1,12 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { anthropicErrorResponse } from "@/lib/ai-error";
+import { geminiErrorResponse } from "@/lib/ai-error";
+import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 
 // See search-recipes/route.ts for why this is needed.
 export const maxDuration = 60;
-
-const client = new Anthropic();
 
 const RESPONSE_SCHEMA = {
   type: "object",
@@ -78,43 +76,32 @@ export async function POST(request: Request) {
     .join("\n\n");
 
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 2048,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: RESPONSE_SCHEMA },
+    const response = await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents:
+        `הנה מתכון. הצע/י:\n` +
+        `1. 2-3 גרסאות יצירתיות של המתכון (וריאציות בטעם/סגנון).\n` +
+        `2. תחליפים בריאים למרכיבים מסוימים (עם הסבר קצר לכל תחליף).\n` +
+        `3. 2-4 טיפים לשיפור הטעם.\n\n${recipeDescription}`,
+      config: {
+        systemInstruction:
+          "אתה שף ותזונאי מומחה. תפקידך לשדרג מתכונים: להציע גרסאות יצירתיות, תחליפים בריאים " +
+          "(כגון הגברת חלבון או הפחתת פחמימות), ושיפורי טעם. ענה בעברית בלבד, בקצרה ובאופן מעשי.",
+        responseMimeType: "application/json",
+        responseJsonSchema: RESPONSE_SCHEMA,
       },
-      system:
-        "אתה שף ותזונאי מומחה. תפקידך לשדרג מתכונים: להציע גרסאות יצירתיות, תחליפים בריאים " +
-        "(כגון הגברת חלבון או הפחתת פחמימות), ושיפורי טעם. ענה בעברית בלבד, בקצרה ובאופן מעשי.",
-      messages: [
-        {
-          role: "user",
-          content:
-            `הנה מתכון. הצע/י:\n` +
-            `1. 2-3 גרסאות יצירתיות של המתכון (וריאציות בטעם/סגנון).\n` +
-            `2. תחליפים בריאים למרכיבים מסוימים (עם הסבר קצר לכל תחליף).\n` +
-            `3. 2-4 טיפים לשיפור הטעם.\n\n${recipeDescription}`,
-        },
-      ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new Error("No text content in response");
-    }
-
-    const parsed = JSON.parse(textBlock.text) as AiUpgradeResult;
+    if (!response.text) throw new Error("No text content in response");
+    const parsed = JSON.parse(response.text) as AiUpgradeResult;
     return NextResponse.json(parsed);
   } catch (err) {
-    const anthropicError = anthropicErrorResponse(
+    const geminiError = geminiErrorResponse(
       err,
-      "פיצ'ר השדרוג בעזרת AI דורש הגדרת משתנה הסביבה ANTHROPIC_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
+      "פיצ'ר השדרוג בעזרת AI דורש הגדרת משתנה הסביבה GEMINI_API_KEY בשרת (ב-.env.local לפיתוח מקומי, או בהגדרות הפרויקט ב-Vercel לגרסה הפרוסה).",
     );
-    if (anthropicError) {
-      return NextResponse.json({ error: anthropicError.error }, { status: anthropicError.status });
+    if (geminiError) {
+      return NextResponse.json({ error: geminiError.error }, { status: geminiError.status });
     }
     return NextResponse.json({ error: "משהו השתבש. נסו שוב." }, { status: 500 });
   }
