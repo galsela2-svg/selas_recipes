@@ -3,6 +3,7 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useRecipe, useUpdateRecipe } from "@/lib/queries/recipes";
+import { useToast } from "@/components/providers/toast-provider";
 import { RecipeForm } from "@/components/recipes/recipe-form";
 import { Spinner } from "@/components/ui/spinner";
 import type { RecipeInput } from "@/lib/types";
@@ -14,6 +15,7 @@ export default function EditRecipePage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const { data: recipe, isLoading } = useRecipe(id);
   const { mutate, isPending } = useUpdateRecipe();
 
@@ -22,7 +24,8 @@ export default function EditRecipePage({
       { id, input },
       {
         onSuccess: () => {
-          router.push(`/recipes/${id}`);
+          showToast("השינויים נשמרו בהצלחה!");
+          router.push("/dashboard");
         },
       },
     );
