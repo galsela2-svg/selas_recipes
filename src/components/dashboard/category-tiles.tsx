@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import {
   Baby,
   Beef,
+  ChevronDown,
   Croissant,
   Dessert,
   EggFried,
@@ -69,42 +71,59 @@ export function CategoryTiles({
   isActive: (tile: CategoryTile) => boolean;
   onSelect: (tile: CategoryTile) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  // Auto-open if a tile from this section is already selected — collapsing
+  // it shouldn't hide *why* the list is filtered.
+  const hasActiveTile = CATEGORY_TILES.some(isActive);
+  const isOpen = expanded || hasActiveTile;
+
   return (
     <div className="space-y-2.5">
-      <p className="font-serif text-lg font-bold text-foreground">עיון לפי קטגוריה</p>
-      <div className="grid grid-cols-4 gap-2.5">
-        {CATEGORY_TILES.map((tile) => {
-          const active = isActive(tile);
-          const Icon = tile.icon;
-          const color = TILE_COLORS[tile.label];
-          return (
-            <button
-              key={tile.label}
-              onClick={() => onSelect(tile)}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-colors cursor-pointer",
-                active
-                  ? "border-accent bg-accent/15"
-                  : "border-border bg-surface hover:border-accent/40",
-              )}
-            >
-              <Icon
-                className="size-6"
-                strokeWidth={1.75}
-                style={{ color, fill: color, fillOpacity: 0.35 }}
-              />
-              <span
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between cursor-pointer"
+      >
+        <p className="font-serif text-lg font-bold text-foreground">עיון לפי קטגוריה</p>
+        <ChevronDown
+          className={cn("size-5 text-muted transition-transform", isOpen && "rotate-180")}
+        />
+      </button>
+      {isOpen && (
+        <div className="grid grid-cols-4 gap-2.5">
+          {CATEGORY_TILES.map((tile) => {
+            const active = isActive(tile);
+            const Icon = tile.icon;
+            const color = TILE_COLORS[tile.label];
+            return (
+              <button
+                key={tile.label}
+                onClick={() => onSelect(tile)}
                 className={cn(
-                  "text-[11px] font-medium leading-tight",
-                  active ? "text-accent" : "text-muted",
+                  "flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-colors cursor-pointer",
+                  active
+                    ? "border-accent bg-accent/15"
+                    : "border-border bg-surface hover:border-accent/40",
                 )}
               >
-                {tile.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <Icon
+                  className="size-6"
+                  strokeWidth={1.75}
+                  style={{ color, fill: color, fillOpacity: 0.35 }}
+                />
+                <span
+                  className={cn(
+                    "text-[11px] font-medium leading-tight",
+                    active ? "text-accent" : "text-muted",
+                  )}
+                >
+                  {tile.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

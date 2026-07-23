@@ -186,7 +186,6 @@ export default function DashboardPage() {
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null);
   const [minRating, setMinRating] = useState(0);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [cookNowMode, setCookNowMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const pantryNames = useMemo(() => (pantryItems ?? []).map((p) => p.name), [pantryItems]);
@@ -303,11 +302,7 @@ export default function DashboardPage() {
       );
     });
 
-    if (!cookNowMode) return matches;
-
-    return [...matches].sort(
-      (a, b) => countMissing(a.ingredients) - countMissing(b.ingredients),
-    );
+    return matches;
   }, [
     recipes,
     search,
@@ -317,12 +312,9 @@ export default function DashboardPage() {
     timeBucket,
     minRating,
     ratingByRecipeId,
-    cookNowMode,
-    countMissing,
   ]);
 
-  const isBrowsingUnfiltered =
-    !search.trim() && activeFilterCount === 0 && !cookNowMode;
+  const isBrowsingUnfiltered = !search.trim() && activeFilterCount === 0;
 
   const webQuery = useMemo(() => {
     const parts: string[] = [];
@@ -411,18 +403,6 @@ export default function DashboardPage() {
                   className="ps-9"
                 />
               </div>
-              <button
-                onClick={() => setCookNowMode((prev) => !prev)}
-                title="מה אפשר לבשל עכשיו?"
-                className={cn(
-                  "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
-                  cookNowMode
-                    ? "border-success bg-success/15 text-success"
-                    : "border-border text-muted hover:bg-surface-2",
-                )}
-              >
-                <ChefHat className="size-4" />
-              </button>
               <button
                 onClick={() => setFavoritesOnly((prev) => !prev)}
                 title="מועדפים בלבד"
@@ -552,13 +532,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {cookNowMode && !isLoading && filtered.length > 0 && (
-            <p className="flex items-center gap-1.5 text-sm text-success">
-              <ChefHat className="size-4 shrink-0" />
-              ממוין לפי הכי פחות מרכיבים חסרים מהמזווה שלכם.
-            </p>
-          )}
-
           {isLoading ? null : filtered.length === 0 ? (
             <EmptyState
               icon={favoritesOnly ? Heart : UtensilsCrossed}
@@ -582,11 +555,7 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
               {filtered.map((recipe) => (
-                <RecipeCard
-                  key={recipe.id}
-                  recipe={recipe}
-                  missingCount={cookNowMode ? countMissing(recipe.ingredients) : undefined}
-                />
+                <RecipeCard key={recipe.id} recipe={recipe} />
               ))}
             </div>
           )}

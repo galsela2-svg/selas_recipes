@@ -4,6 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Camera,
   ChefHat,
   Clock,
   ExternalLink,
@@ -15,7 +16,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useDeleteRecipe, useRecipe, useToggleFavorite } from "@/lib/queries/recipes";
+import { useDeleteRecipe, useRecipe, useToggleFavorite, useUpdateRecipe } from "@/lib/queries/recipes";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -35,6 +36,7 @@ import { ServingsAdjuster } from "@/components/recipes/servings-adjuster";
 import { InstructionText } from "@/components/recipes/instruction-text";
 import { CookLogSection } from "@/components/recipes/cook-log-section";
 import { AiUpgradePanel } from "@/components/recipes/ai-upgrade-panel";
+import { ImageField } from "@/components/recipes/image-field";
 import { useSettings } from "@/components/providers/settings-provider";
 
 export default function RecipeDetailPage({
@@ -49,12 +51,15 @@ export default function RecipeDetailPage({
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
+  const updateRecipe = useUpdateRecipe();
   const [settings] = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [added, setAdded] = useState(false);
   const [targetServings, setTargetServings] = useState<number | null>(null);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>(() => settings.defaultUnitSystem);
   const [hideHavePantryItems, setHideHavePantryItems] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [draftImageUrl, setDraftImageUrl] = useState("");
 
   const baseServings = recipe?.servings ?? 1;
   const servings = targetServings ?? baseServings;
@@ -98,9 +103,49 @@ export default function RecipeDetailPage({
     });
   }
 
+  function openImageModal() {
+    if (!recipe) return;
+    setDraftImageUrl(recipe.image_url ?? "");
+    setShowImageModal(true);
+  }
+
+  function handleSaveImage() {
+    if (!recipe) return;
+    updateRecipe.mutate(
+      {
+        id: recipe.id,
+        input: {
+          title: recipe.title,
+          description: recipe.description,
+          image_url: draftImageUrl.trim() || null,
+          source_url: recipe.source_url,
+          prep_time_minutes: recipe.prep_time_minutes,
+          cook_time_minutes: recipe.cook_time_minutes,
+          servings: recipe.servings,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+          tags: recipe.tags,
+          dietary_tags: recipe.dietary_tags,
+        },
+      },
+      { onSuccess: () => setShowImageModal(false) },
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-sm">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={openImageModal}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openImageModal();
+          }
+        }}
+        className="group relative block aspect-[16/9] w-full overflow-hidden rounded-2xl bg-surface-2 shadow-sm cursor-pointer"
+      >
         {recipe.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -114,10 +159,27 @@ export default function RecipeDetailPage({
           </div>
         )}
 
-        <button
-          onClick={() =>
-            toggleFavorite.mutate({ id: recipe.id, isFavorite: !recipe.is_favorite })
-          }
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+          <span className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+            <Camera className="size-3.5" />
+            {recipe.image_url ? "החלפת תמונה" : "הוספת תמונה"}
+          </span>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite.mutate({ id: recipe.id, isFavorite: !recipe.is_favorite });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleFavorite.mutate({ id: recipe.id, isFavorite: !recipe.is_favorite });
+            }
+          }}
           className="absolute end-3 top-3 flex size-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm cursor-pointer transition-transform active:scale-90"
         >
           <Heart
@@ -125,8 +187,22 @@ export default function RecipeDetailPage({
               recipe.is_favorite ? "size-5 fill-danger text-danger" : "size-5 text-white"
             }
           />
-        </button>
+        </div>
       </div>
+
+      <Modal open={showImageModal} onClose={() => setShowImageModal(false)} title="תמונת המתכון">
+        <div className="space-y-4">
+          <ImageField value={draftImageUrl} onChange={setDraftImageUrl} />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowImageModal(false)}>
+              ביטול
+            </Button>
+            <Button onClick={handleSaveImage} loading={updateRecipe.isPending}>
+              שמירה
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-start justify-end gap-3">

@@ -40,9 +40,10 @@ export function ParseUrlPanel({
 }: {
   onParsed: (recipe: ParsedRecipe) => void;
 }) {
-  const [mode, setMode] = useState<ImportMode>("url");
+  const [mode, setMode] = useState<ImportMode>("text");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeTone, setNoticeTone] = useState<"info" | "success">("info");
 
   const [url, setUrl] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
@@ -57,6 +58,7 @@ export function ParseUrlPanel({
     setMode(next);
     setError(null);
     setNotice(null);
+    setNoticeTone("info");
   }
 
   async function handleUrlSubmit() {
@@ -66,6 +68,7 @@ export function ParseUrlPanel({
     setUrlLoading(true);
     setError(null);
     setNotice(null);
+    setNoticeTone("info");
 
     const instagram = isInstagramUrl(trimmedUrl);
     const endpoint = instagram ? "/api/parse-instagram" : "/api/parse-recipe";
@@ -117,6 +120,7 @@ export function ParseUrlPanel({
     setPhotoLoading(true);
     setError(null);
     setNotice(null);
+    setNoticeTone("info");
 
     try {
       const base64 = await readFileAsBase64(file);
@@ -145,6 +149,7 @@ export function ParseUrlPanel({
     setTextLoading(true);
     setError(null);
     setNotice(null);
+    setNoticeTone("info");
 
     try {
       const res = await fetch("/api/parse-text", {
@@ -157,7 +162,8 @@ export function ParseUrlPanel({
 
       const parsed = body as ParsedRecipe;
       onParsed(parsed);
-      setNotice("ארגנו את המתכון לפורמט — כדאי לעבור עליו ולוודא שהוא מדויק.");
+      setNoticeTone("success");
+      setNotice("המתכון סודר בהצלחה! כדאי לעבור עליו ולוודא שהוא מדויק.");
       setTextDraft("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
@@ -234,7 +240,6 @@ export function ParseUrlPanel({
             ref={photoInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handlePhotoChange}
             className="hidden"
           />
@@ -264,7 +269,11 @@ export function ParseUrlPanel({
       )}
 
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
-      {notice && <p className="mt-3 text-xs text-accent">{notice}</p>}
+      {notice && (
+        <p className={cn("mt-3 text-xs", noticeTone === "success" ? "text-success" : "text-accent")}>
+          {notice}
+        </p>
+      )}
     </div>
   );
 }

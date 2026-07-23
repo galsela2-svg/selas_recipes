@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Pencil } from "lucide-react";
+import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { DIETARY_TAG_GROUPS, type ParsedRecipe, type Recipe, type RecipeInput } from "@/lib/types";
 import { linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
@@ -80,6 +80,37 @@ export function RecipeForm({
   const [dietaryTags, setDietaryTags] = useState<string[]>(
     initialRecipe?.dietary_tags ?? [],
   );
+  const [suggestingTags, setSuggestingTags] = useState(false);
+  const [suggestTagsError, setSuggestTagsError] = useState<string | null>(null);
+
+  // Suggests tags from the given recipe content and merges them into
+  // whatever's already selected — never removes a tag the user picked
+  // themselves, just adds the ones AI thinks apply.
+  async function suggestTags(recipe: {
+    title: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+  }) {
+    setSuggestingTags(true);
+    setSuggestTagsError(null);
+    try {
+      const res = await fetch("/api/suggest-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(recipe),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו להציע תגיות.");
+
+      const suggested = body.tags as string[];
+      setDietaryTags((prev) => Array.from(new Set([...prev, ...suggested])));
+    } catch (err) {
+      setSuggestTagsError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setSuggestingTags(false);
+    }
+  }
 
   function applyParsedRecipe(parsed: ParsedRecipe) {
     setTitle(parsed.title);
@@ -92,6 +123,15 @@ export function RecipeForm({
     setIngredients(parsed.ingredients);
     setInstructionsText(parsed.instructions.join("\n"));
     setManualExpanded(true);
+
+    // Auto-suggest right after a successful import — the content is
+    // already there, so there's no reason to make this an extra click.
+    suggestTags({
+      title: parsed.title,
+      description: parsed.description ?? "",
+      ingredients: parsed.ingredients,
+      instructions: parsed.instructions,
+    });
   }
 
   function handleSubmit(e: FormEvent) {
@@ -185,6 +225,30 @@ export function RecipeForm({
       </div>
 
       <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-foreground">קטגוריות ותגיות</label>
+          <button
+            type="button"
+            onClick={() =>
+              suggestTags({
+                title,
+                description,
+                ingredients,
+                instructions: linesToList(instructionsText),
+              })
+            }
+            disabled={suggestingTags || (!title.trim() && ingredients.length === 0)}
+            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent/80 cursor-pointer disabled:opacity-50"
+          >
+            {suggestingTags ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5" />
+            )}
+            הצעת תגיות אוטומטית
+          </button>
+        </div>
+        {suggestTagsError && <p className="text-xs text-danger">{suggestTagsError}</p>}
         {DIETARY_TAG_GROUPS.map((group) => (
           <div key={group.label} className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">{group.label}</label>

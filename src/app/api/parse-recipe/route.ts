@@ -9,6 +9,7 @@ import {
   parseRecipeFromHtml,
 } from "@/lib/recipe-scraper";
 import { createClient } from "@/lib/supabase/server";
+import { cleanRecipeDescription } from "@/lib/clean-description";
 
 // See search-recipes/route.ts for why this is needed — external page
 // fetches here can otherwise run past Vercel's platform default timeout.
@@ -101,6 +102,15 @@ export async function POST(request: Request) {
       },
       { status: 422 },
     );
+  }
+
+  // The scraped description is raw page metadata (og:description or the
+  // site's own JSON-LD text) — often padded with marketing copy, hashtags,
+  // or navigation text that has nothing to do with the dish. Clean it up
+  // when there's something to clean; silently keeps the original on any
+  // AI failure so link import doesn't depend on a configured API key.
+  if (recipe.description) {
+    recipe = { ...recipe, description: await cleanRecipeDescription(recipe.title, recipe.description) };
   }
 
   return NextResponse.json(recipe);
