@@ -117,6 +117,14 @@ function findDensity(ingredientName: string): number | null {
   return null;
 }
 
+/** Like findUnit, but returns just the unit's display label instead of its
+ * full conversion metadata — for callers that only need to split a unit
+ * word off an ingredient line, not convert it. */
+export function splitLeadingUnit(text: string): { label: string; rest: string } | null {
+  const found = findUnit(text);
+  return found ? { label: found.unit.label, rest: found.rest } : null;
+}
+
 function findUnit(text: string): { unit: UnitDef; rest: string } | null {
   const lower = text.toLowerCase();
   // Longest alias first so "fl oz" matches before "oz".

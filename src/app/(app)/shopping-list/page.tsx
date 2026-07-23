@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QuickAddBar } from "@/components/shopping-list/quick-add-bar";
 import { KnownItemsManager } from "@/components/shopping-list/known-items-manager";
 import { AISLE_CATEGORIES, categorizeItem } from "@/lib/aisle-categories";
+import { splitIngredientQuantity } from "@/lib/ingredient-display";
 import { cn } from "@/lib/utils";
 import type { ShoppingListItem } from "@/lib/types";
 
@@ -253,54 +254,65 @@ function ItemGroup({
 }) {
   return (
     <ul className="grid grid-cols-2 gap-2">
-      {items.map((item) => (
-        <li
-          key={item.id}
-          className="group flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
-        >
-          <button
-            onClick={() => onToggle(item.id, !item.checked)}
-            className={cn(
-              "flex size-5 shrink-0 items-center justify-center rounded-md border cursor-pointer transition-colors",
-              item.checked
-                ? "border-accent bg-accent"
-                : "border-border hover:border-accent",
-            )}
-          >
-            {item.checked && (
-              <svg viewBox="0 0 16 16" className="size-3 fill-accent-foreground">
-                <path d="M6.5 11.5 3 8l1-1 2.5 2.5L12 4l1 1z" />
-              </svg>
-            )}
-          </button>
+      {items.map((item) => {
+        // Items added from a recipe carry their ingredient line's quantity
+        // in item.name (e.g. "3 כפות מלח") — split it so the card shows
+        // just the item, with the amount as a small line underneath,
+        // instead of the raw combined text.
+        const split = item.recipe_id ? splitIngredientQuantity(item.name) : null;
 
-          <div className="min-w-0 flex-1">
-            <p
+        return (
+          <li
+            key={item.id}
+            className="group flex items-start gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+          >
+            <button
+              onClick={() => onToggle(item.id, !item.checked)}
               className={cn(
-                "truncate text-sm text-foreground",
-                item.checked && "text-muted line-through",
+                "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border cursor-pointer transition-colors",
+                item.checked
+                  ? "border-accent bg-accent"
+                  : "border-border hover:border-accent",
               )}
             >
-              {item.name}
-            </p>
-            {showRecipeLink && item.recipe_id && item.recipe_title && (
-              <Link
-                href={`/recipes/${item.recipe_id}`}
-                className="block truncate text-xs text-muted hover:text-accent"
-              >
-                {item.recipe_title}
-              </Link>
-            )}
-          </div>
+              {item.checked && (
+                <svg viewBox="0 0 16 16" className="size-3 fill-accent-foreground">
+                  <path d="M6.5 11.5 3 8l1-1 2.5 2.5L12 4l1 1z" />
+                </svg>
+              )}
+            </button>
 
-          <button
-            onClick={() => onDelete(item.id)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-danger cursor-pointer"
-          >
-            <X className="size-3.5" />
-          </button>
-        </li>
-      ))}
+            <div className="min-w-0 flex-1">
+              <p
+                className={cn(
+                  "break-words text-sm text-foreground",
+                  item.checked && "text-muted line-through",
+                )}
+              >
+                {split?.name ?? item.name}
+              </p>
+              {split?.quantity && (
+                <p className="text-xs text-muted">{split.quantity}</p>
+              )}
+              {showRecipeLink && item.recipe_id && item.recipe_title && (
+                <Link
+                  href={`/recipes/${item.recipe_id}`}
+                  className="block truncate text-xs text-muted hover:text-accent"
+                >
+                  {item.recipe_title}
+                </Link>
+              )}
+            </div>
+
+            <button
+              onClick={() => onDelete(item.id)}
+              className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-danger cursor-pointer"
+            >
+              <X className="size-3.5" />
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
