@@ -10,6 +10,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TagInput } from "@/components/recipes/tag-input";
 import { ParseUrlPanel } from "@/components/recipes/parse-url-panel";
+import { ImageField } from "@/components/recipes/image-field";
 import { IngredientListInput } from "@/components/recipes/ingredient-list-input";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
@@ -155,18 +156,7 @@ export function RecipeForm({
         />
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-foreground">
-          כתובת תמונה
-        </label>
-        <Input
-          type="url"
-          dir="ltr"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://..."
-        />
-      </div>
+      <ImageField value={imageUrl} onChange={setImageUrl} />
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">

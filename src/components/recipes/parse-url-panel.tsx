@@ -5,6 +5,15 @@ import { Camera, Clapperboard, Link2, NotebookPen } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+type ImportMode = "url" | "photo" | "text";
+
+const MODE_TABS: { id: ImportMode; label: string; icon: typeof Link2 }[] = [
+  { id: "url", label: "קישור", icon: Link2 },
+  { id: "photo", label: "תמונה", icon: Camera },
+  { id: "text", label: "טקסט", icon: NotebookPen },
+];
 
 function isInstagramUrl(raw: string): boolean {
   try {
@@ -31,22 +40,30 @@ export function ParseUrlPanel({
 }: {
   onParsed: (recipe: ParsedRecipe) => void;
 }) {
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [photoLoading, setPhotoLoading] = useState(false);
+  const [mode, setMode] = useState<ImportMode>("url");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const [url, setUrl] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+
+  const [photoLoading, setPhotoLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const [showTextInput, setShowTextInput] = useState(false);
   const [textDraft, setTextDraft] = useState("");
   const [textLoading, setTextLoading] = useState(false);
 
-  async function handleSubmit() {
+  function switchMode(next: ImportMode) {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  }
+
+  async function handleUrlSubmit() {
     const trimmedUrl = url.trim();
     if (!trimmedUrl) return;
 
-    setLoading(true);
+    setUrlLoading(true);
     setError(null);
     setNotice(null);
 
@@ -88,7 +105,7 @@ export function ParseUrlPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
-      setLoading(false);
+      setUrlLoading(false);
     }
   }
 
@@ -142,7 +159,6 @@ export function ParseUrlPanel({
       onParsed(parsed);
       setNotice("ארגנו את המתכון לפורמט — כדאי לעבור עליו ולוודא שהוא מדויק.");
       setTextDraft("");
-      setShowTextInput(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
@@ -158,62 +174,75 @@ export function ParseUrlPanel({
         </div>
         <div>
           <p className="font-serif text-lg font-bold leading-tight text-foreground">
-            ראיתם מתכון ברילז?
+            יבוא מתכון
           </p>
-          <p className="text-xs text-muted">הדביקו את הקישור ואנחנו נהפוך אותו למתכון שמור</p>
+          <p className="text-xs text-muted">מקישור (כולל רילז), מתמונה, או מטקסט חופשי</p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Input
-          type="url"
-          dir="ltr"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSubmit();
-            }
-          }}
-          placeholder="instagram.com/reel/... או קישור לכל אתר מתכונים"
-        />
-        <Button type="button" size="lg" className="w-full" loading={loading} onClick={handleSubmit}>
-          <Link2 className="size-4" />
-          פענוח המתכון
-        </Button>
+      <div className="mb-3 grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
+        {MODE_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => switchMode(id)}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+              mode === id ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
+            )}
+          >
+            <Icon className="size-4" />
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => photoInputRef.current?.click()}
-          disabled={photoLoading}
-          className="flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer disabled:opacity-50"
-        >
-          <Camera className="size-3.5" />
-          {photoLoading ? "סורק תמונה..." : "צלמו עמוד מספר בישול"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowTextInput((prev) => !prev)}
-          className="flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground cursor-pointer"
-        >
-          <NotebookPen className="size-3.5" />
-          הדביקו מתכון כטקסט
-        </button>
-      </div>
-      <input
-        ref={photoInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handlePhotoChange}
-        className="hidden"
-      />
+      {mode === "url" && (
+        <div className="flex flex-col gap-2">
+          <Input
+            type="url"
+            dir="ltr"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleUrlSubmit();
+              }
+            }}
+            placeholder="instagram.com/reel/... או קישור לכל אתר מתכונים"
+          />
+          <Button type="button" size="lg" className="w-full" loading={urlLoading} onClick={handleUrlSubmit}>
+            <Link2 className="size-4" />
+            פענוח המתכון
+          </Button>
+        </div>
+      )}
 
-      {showTextInput && (
-        <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+      {mode === "photo" && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-accent/40 py-6 text-sm font-medium text-muted transition-colors hover:border-accent/70 hover:text-foreground cursor-pointer disabled:opacity-50"
+          >
+            <Camera className="size-5" />
+            {photoLoading ? "סורק תמונה..." : "צלמו או בחרו עמוד מספר בישול"}
+          </button>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoChange}
+            className="hidden"
+          />
+        </div>
+      )}
+
+      {mode === "text" && (
+        <div className="flex flex-col gap-2">
           <Textarea
             value={textDraft}
             onChange={(e) => setTextDraft(e.target.value)}
@@ -222,7 +251,8 @@ export function ParseUrlPanel({
           />
           <Button
             type="button"
-            variant="secondary"
+            size="lg"
+            className="w-full"
             loading={textLoading}
             onClick={handleTextSubmit}
             disabled={!textDraft.trim()}
