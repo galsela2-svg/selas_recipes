@@ -13,16 +13,19 @@ import {
 } from "@/lib/types";
 import { cn, linesToList, listToLines } from "@/lib/utils";
 import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
+import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TagInput } from "@/components/recipes/tag-input";
+import { EditableTag } from "@/components/recipes/editable-tag";
 import { ParseUrlPanel } from "@/components/recipes/parse-url-panel";
 import { ImageField } from "@/components/recipes/image-field";
 import { IngredientListInput } from "@/components/recipes/ingredient-list-input";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
 const CUSTOM_TAGS_GROUP = "תגיות נוספות";
+const DIFFICULTY_OPTIONS = DIETARY_TAG_GROUPS.find((g) => g.label === "רמת קושי")?.options ?? [];
 
 // Picks up a recipe handed off from the web-search results page, if any.
 // Reading + clearing sessionStorage here (inside a lazy useState
@@ -50,6 +53,7 @@ export function RecipeForm({
   submitLabel: string;
   submitting?: boolean;
 }) {
+  const { showToast } = useToast();
   const [pendingImport] = useState(() => readPendingImport(Boolean(initialRecipe)));
   // New, empty recipes start collapsed to just the import panel — most
   // recipes here come from pasting an Instagram/recipe link, not typing.
@@ -121,6 +125,23 @@ export function RecipeForm({
       return { ...prev, [groupLabel]: [...existing, trimmed] };
     });
     setDietaryTags((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+  }
+
+  function renameCustomTag(groupLabel: string, oldTag: string, newTag: string) {
+    setCustomTagsByGroup((prev) => {
+      const existing = prev[groupLabel] ?? [];
+      if (existing.includes(newTag)) return prev;
+      return { ...prev, [groupLabel]: existing.map((t) => (t === oldTag ? newTag : t)) };
+    });
+    setDietaryTags((prev) => prev.map((t) => (t === oldTag ? newTag : t)));
+  }
+
+  function deleteCustomTag(groupLabel: string, tag: string) {
+    setCustomTagsByGroup((prev) => ({
+      ...prev,
+      [groupLabel]: (prev[groupLabel] ?? []).filter((t) => t !== tag),
+    }));
+    setDietaryTags((prev) => prev.filter((t) => t !== tag));
   }
 
   // Suggests tags from the given recipe content and merges them into
@@ -217,6 +238,46 @@ export function RecipeForm({
     }
   }
 
+  // When only one of description/instructions came back from an import, asks
+  // AI to derive the missing one from whatever text does exist, and to fill
+  // in prep/cook time and a difficulty tag while it's at it. Never overwrites
+  // a field that's already there — only fills in the blanks.
+  async function completeMissingFields(
+    titleArg: string,
+    ingredientsArg: string[],
+    descriptionArg: string,
+    instructionsArg: string[],
+    currentPrepTime: string,
+    currentCookTime: string,
+  ) {
+    try {
+      const res = await fetch("/api/complete-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titleArg,
+          ingredients: ingredientsArg,
+          description: descriptionArg,
+          instructions: instructionsArg,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) return;
+
+      if (!descriptionArg.trim()) setDescription(body.description as string);
+      if (instructionsArg.length === 0) setInstructionsText(listToLines(body.instructions as string[]));
+      if (!currentPrepTime && body.prep_time_minutes) setPrepTime(String(body.prep_time_minutes));
+      if (!currentCookTime && body.cook_time_minutes) setCookTime(String(body.cook_time_minutes));
+      setDietaryTags((prev) =>
+        DIFFICULTY_OPTIONS.some((d) => prev.includes(d)) ? prev : [...prev, body.difficulty as string],
+      );
+      showToast("השלמנו פרטים חסרים במתכון (תיאור/הוראות/זמן/רמת קושי) עם בינה מלאכותית");
+    } catch {
+      // Runs automatically in the background — a failure here just means the
+      // recipe is missing a bit less polish than usual, nothing blocks on it.
+    }
+  }
+
   function applyParsedRecipe(parsed: ParsedRecipe) {
     setTitle(parsed.title);
     setDescription(parsed.description ?? "");
@@ -245,6 +306,19 @@ export function RecipeForm({
         parsed.instructions,
         parsed.ingredients,
         parsed.title,
+        parsed.prep_time_minutes?.toString() ?? "",
+        parsed.cook_time_minutes?.toString() ?? "",
+      );
+    }
+
+    const hasDescription = Boolean(parsed.description?.trim());
+    const hasInstructions = parsed.instructions.length > 0;
+    if (hasDescription !== hasInstructions) {
+      completeMissingFields(
+        parsed.title,
+        parsed.ingredients,
+        parsed.description ?? "",
+        parsed.instructions,
         parsed.prep_time_minutes?.toString() ?? "",
         parsed.cook_time_minutes?.toString() ?? "",
       );
@@ -425,15 +499,26 @@ export function RecipeForm({
             <div key={group.label} className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">{group.label}</label>
               <div className="flex flex-wrap items-center gap-1.5">
-                {allOptions.map((tag) => (
-                  <Badge
-                    key={tag}
-                    active={dietaryTags.includes(tag)}
-                    onClick={() => toggleDietaryTag(tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
+                {allOptions.map((tag) =>
+                  extra.includes(tag) ? (
+                    <EditableTag
+                      key={tag}
+                      tag={tag}
+                      active={dietaryTags.includes(tag)}
+                      onToggle={() => toggleDietaryTag(tag)}
+                      onRename={(next) => renameCustomTag(group.label, tag, next)}
+                      onDelete={() => deleteCustomTag(group.label, tag)}
+                    />
+                  ) : (
+                    <Badge
+                      key={tag}
+                      active={dietaryTags.includes(tag)}
+                      onClick={() => toggleDietaryTag(tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ),
+                )}
 
                 {isAdding ? (
                   <span className="inline-flex items-center gap-1">
