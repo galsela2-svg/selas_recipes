@@ -44,13 +44,15 @@ import { useRecipes, useCreateRecipe } from "@/lib/queries/recipes";
 import { useTags } from "@/lib/queries/tags";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
-import { DIETARY_TAG_GROUPS, RECIPE_OWNERS, type ParsedRecipe, type RecipeOwner } from "@/lib/types";
+import { DIETARY_TAG_GROUPS, type ParsedRecipe, type RecipeOwner } from "@/lib/types";
 import { buildDiscoveryQuery } from "@/lib/taste-profile";
 import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
+import { useSettings } from "@/components/providers/settings-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { RecipeShelf } from "@/components/dashboard/recipe-shelf";
-import { CategoryTiles, CATEGORY_TILES, type CategoryTile } from "@/components/dashboard/category-tiles";
+import { CategoryTiles } from "@/components/dashboard/category-tiles";
+import { TILE_CATALOG_BY_KEY, type CategoryTile } from "@/lib/quick-filter-tiles";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
 import { WebRecipeSuggestions } from "@/components/dashboard/web-recipe-suggestions";
 import { ImportableRecipeCard } from "@/components/search/importable-recipe-card";
@@ -76,22 +78,26 @@ function matchesTimeBucket(totalMinutes: number, bucket: TimeBucket): boolean {
   return totalMinutes > 60;
 }
 
-// Category tiles above the filter drawer are shortcuts into specific
-// dietary tags / time buckets — computed once here (both inputs are static
-// module constants) so the drawer below can skip re-listing whichever ones
-// already have a tile, instead of showing the same category twice.
-const TILE_DIETARY_TAGS = new Set(
-  CATEGORY_TILES.filter((t) => t.kind === "dietary").map((t) => `${t.group}:${t.tag}`),
-);
-const FILTER_DIETARY_GROUPS = DIETARY_TAG_GROUPS.map((group) => ({
-  label: group.label,
-  options: group.options.filter((tag) => !TILE_DIETARY_TAGS.has(`${group.label}:${tag}`)),
-})).filter((group) => group.options.length > 0);
+// The quick-filter tile row is user-customizable, so which dietary tags /
+// time buckets it covers changes at runtime — the drawer below skips
+// re-listing whichever ones currently have a tile, instead of showing the
+// same category twice. Computed per-render from the user's active tiles.
+function dedupeAgainstTiles(activeTiles: CategoryTile[]) {
+  const tileDietaryTags = new Set(
+    activeTiles.filter((t) => t.kind === "dietary").map((t) => `${t.group}:${t.tag}`),
+  );
+  const dietaryGroups = DIETARY_TAG_GROUPS.map((group) => ({
+    label: group.label,
+    options: group.options.filter((tag) => !tileDietaryTags.has(`${group.label}:${tag}`)),
+  })).filter((group) => group.options.length > 0);
 
-const TILE_TIME_BUCKETS = new Set<TimeBucket>(
-  CATEGORY_TILES.filter((t) => t.kind === "time").map((t) => t.bucket),
-);
-const FILTER_TIME_BUCKETS = TIME_BUCKETS.filter(({ value }) => !TILE_TIME_BUCKETS.has(value));
+  const tileTimeBuckets = new Set<TimeBucket>(
+    activeTiles.filter((t) => t.kind === "time").map((t) => t.bucket),
+  );
+  const timeBuckets = TIME_BUCKETS.filter(({ value }) => !tileTimeBuckets.has(value));
+
+  return { dietaryGroups, timeBuckets };
+}
 
 // Only "short" has a search-friendly translation — "medium"/"long" don't
 // map to a phrase people actually search recipe sites for.
@@ -192,12 +198,15 @@ function colorForLabel(label: string): string {
 type WebSearchResult = { title: string; url: string; snippet: string };
 type SearchResponse = { recipes: ParsedRecipe[]; links: WebSearchResult[] };
 
+const TOP_OWNER_FILTERS: RecipeOwner[] = ["ניבה", "גל"];
+
 export default function DashboardPage() {
   const [mode, setMode] = useState<"collection" | "web">("collection");
   const { data: recipes, isLoading } = useRecipes();
   const { data: pantryItems } = usePantryItems();
   const { data: cookLogs } = useAllCookLogs();
   const tags = useTags();
+  const [settings, setSetting] = useSettings();
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
@@ -206,6 +215,18 @@ export default function DashboardPage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState<RecipeOwner | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  const activeTiles = useMemo(
+    () =>
+      settings.quickFilterTileKeys
+        .map((key) => TILE_CATALOG_BY_KEY.get(key))
+        .filter((t): t is CategoryTile => Boolean(t)),
+    [settings.quickFilterTileKeys],
+  );
+  const { dietaryGroups: FILTER_DIETARY_GROUPS, timeBuckets: FILTER_TIME_BUCKETS } = useMemo(
+    () => dedupeAgainstTiles(activeTiles),
+    [activeTiles],
+  );
 
   const pantryNames = useMemo(() => (pantryItems ?? []).map((p) => p.name), [pantryItems]);
 
@@ -381,19 +402,8 @@ export default function DashboardPage() {
         <WebSearchMode />
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-1.5 rounded-xl border border-border bg-surface p-1">
-            <button
-              onClick={() => setOwnerFilter(null)}
-              className={cn(
-                "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-                ownerFilter === null
-                  ? "bg-accent/15 text-accent"
-                  : "text-muted hover:text-foreground",
-              )}
-            >
-              הכול
-            </button>
-            {RECIPE_OWNERS.map((owner) => (
+          <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
+            {TOP_OWNER_FILTERS.map((owner) => (
               <button
                 key={owner}
                 onClick={() => setOwnerFilter(ownerFilter === owner ? null : owner)}
@@ -407,9 +417,18 @@ export default function DashboardPage() {
                 {owner}
               </button>
             ))}
+            <button
+              onClick={() => setOwnerFilter(null)}
+              className={cn(
+                "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                ownerFilter === null
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              הכול
+            </button>
           </div>
-
-          {!isLoading && <CategoryTiles isActive={isTileActive} onSelect={handleTileSelect} />}
 
           {isLoading ? (
             <Spinner />
@@ -482,6 +501,15 @@ export default function DashboardPage() {
                 )}
               </button>
             </div>
+
+            {!isLoading && (
+              <CategoryTiles
+                tileKeys={settings.quickFilterTileKeys}
+                onTileKeysChange={(keys) => setSetting("quickFilterTileKeys", keys)}
+                isActive={isTileActive}
+                onSelect={handleTileSelect}
+              />
+            )}
 
             {showFilters && (
               <div className="space-y-3 rounded-xl border border-border bg-surface p-3.5">

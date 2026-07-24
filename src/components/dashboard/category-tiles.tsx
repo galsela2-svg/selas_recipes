@@ -1,129 +1,166 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import {
-  Baby,
-  Beef,
-  ChevronDown,
-  Croissant,
-  Dessert,
-  EggFried,
-  Leaf,
-  Milk,
-  Sandwich,
-  Scale,
-  Sparkles,
-  Star,
-  UtensilsCrossed,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+  CATEGORY_TILE_CATALOG,
+  TILE_CATALOG_BY_KEY,
+  tileKey,
+  type CategoryTile,
+} from "@/lib/quick-filter-tiles";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
-export type CategoryTile =
-  | { kind: "dietary"; tag: string; group: string; icon: LucideIcon; label: string }
-  | { kind: "time"; bucket: "short"; icon: LucideIcon; label: string }
-  | { kind: "rating"; threshold: number; icon: LucideIcon; label: string };
+const LONG_PRESS_MS = 500;
 
-// Each of these is a shortcut into a specific tag/filter that also exists in
-// the full filter drawer below — the drawer skips re-listing whichever ones
-// already have a tile here, so nothing shows up twice on screen (see
-// FILTER_DIETARY_GROUPS / FILTER_TIME_BUCKETS in dashboard/page.tsx).
-export const CATEGORY_TILES: CategoryTile[] = [
-  { kind: "dietary", tag: "ארוחת בוקר", group: "סוג ארוחה", icon: EggFried, label: "בוקר" },
-  { kind: "dietary", tag: "ארוחת צהריים", group: "סוג ארוחה", icon: Sandwich, label: "צהריים" },
-  { kind: "dietary", tag: "ארוחת ערב", group: "סוג ארוחה", icon: UtensilsCrossed, label: "ערב" },
-  { kind: "dietary", tag: "קינוח", group: "סוג ארוחה", icon: Dessert, label: "קינוחים" },
-  { kind: "dietary", tag: "מאפים", group: "סוג ארוחה", icon: Croissant, label: "מאפים" },
-  { kind: "dietary", tag: "בשרי", group: "כשרות", icon: Beef, label: "בשרי" },
-  { kind: "dietary", tag: "חלבי", group: "כשרות", icon: Milk, label: "חלבי" },
-  { kind: "dietary", tag: "פרווה", group: "כשרות", icon: Scale, label: "פרווה" },
-  { kind: "dietary", tag: "צמחוני", group: "תזונה ואלרגנים", icon: Leaf, label: "צמחוני" },
-  { kind: "time", bucket: "short", icon: Zap, label: "מהיר וקל" },
-  { kind: "rating", threshold: 8, icon: Star, label: "הכי מדורגים" },
-  { kind: "dietary", tag: "לשבת וחג", group: "הזדמנות", icon: Sparkles, label: "שבת וחג" },
-  { kind: "dietary", tag: "מתאים לילדים", group: "ילדים", icon: Baby, label: "ילדים" },
-];
-
-// Flat design on purpose: the color lives only in the icon itself (a solid
-// fill + solid stroke) — no badge/circle sitting behind it, no gradient, no
-// shadow, no emoji.
-const TILE_COLORS: Record<string, string> = {
-  בוקר: "#b45309",
-  צהריים: "#c2410c",
-  ערב: "#7e22ce",
-  קינוחים: "#db2777",
-  מאפים: "#92400e",
-  בשרי: "#b91c1c",
-  חלבי: "#2563eb",
-  פרווה: "#475569",
-  צמחוני: "#15803d",
-  "מהיר וקל": "#ca8a04",
-  "הכי מדורגים": "#d97706",
-  "שבת וחג": "#6d28d9",
-  ילדים: "#0284c7",
-};
-
+// A single scrollable row of small quick-filter shortcuts, user-customizable:
+// long-press removes one, "+" at the end opens a picker for adding more from
+// the full catalog. Which tiles are active (and their order) is handed in
+// from the dashboard, which persists it via useSettings.
 export function CategoryTiles({
+  tileKeys,
+  onTileKeysChange,
   isActive,
   onSelect,
 }: {
+  tileKeys: string[];
+  onTileKeysChange: (keys: string[]) => void;
   isActive: (tile: CategoryTile) => boolean;
   onSelect: (tile: CategoryTile) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  // Auto-open if a tile from this section is already selected — collapsing
-  // it shouldn't hide *why* the list is filtered.
-  const hasActiveTile = CATEGORY_TILES.some(isActive);
-  const isOpen = expanded || hasActiveTile;
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const tiles = tileKeys
+    .map((key) => TILE_CATALOG_BY_KEY.get(key))
+    .filter((t): t is CategoryTile => Boolean(t));
+
+  function removeTile(key: string) {
+    onTileKeysChange(tileKeys.filter((k) => k !== key));
+  }
+
+  function addTile(key: string) {
+    if (!tileKeys.includes(key)) onTileKeysChange([...tileKeys, key]);
+  }
+
+  const availableToAdd = CATEGORY_TILE_CATALOG.filter((t) => !tileKeys.includes(tileKey(t)));
+  const groupedAvailable = new Map<string, CategoryTile[]>();
+  for (const tile of availableToAdd) {
+    const groupLabel = tile.kind === "dietary" ? tile.group : "אחר";
+    groupedAvailable.set(groupLabel, [...(groupedAvailable.get(groupLabel) ?? []), tile]);
+  }
 
   return (
-    <div className="space-y-2.5">
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between cursor-pointer"
-      >
-        <p className="font-serif text-lg font-bold text-foreground">עיון לפי קטגוריה</p>
-        <ChevronDown
-          className={cn("size-5 text-muted transition-transform", isOpen && "rotate-180")}
-        />
-      </button>
-      {isOpen && (
-        <div className="grid grid-cols-4 gap-2.5">
-          {CATEGORY_TILES.map((tile) => {
-            const active = isActive(tile);
-            const Icon = tile.icon;
-            const color = TILE_COLORS[tile.label];
-            return (
-              <button
-                key={tile.label}
-                onClick={() => onSelect(tile)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-colors cursor-pointer",
-                  active
-                    ? "border-accent bg-accent/15"
-                    : "border-border bg-surface hover:border-accent/40",
-                )}
-              >
-                <Icon
-                  className="size-6"
-                  strokeWidth={1.75}
-                  style={{ color, fill: color, fillOpacity: 0.35 }}
-                />
-                <span
-                  className={cn(
-                    "text-[11px] font-medium leading-tight",
-                    active ? "text-accent" : "text-muted",
-                  )}
-                >
-                  {tile.label}
-                </span>
-              </button>
-            );
-          })}
+    <>
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {tiles.map((tile) => (
+          <QuickFilterTile
+            key={tileKey(tile)}
+            tile={tile}
+            active={isActive(tile)}
+            onSelect={() => onSelect(tile)}
+            onRemove={() => removeTile(tileKey(tile))}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          title="הוספת כפתור קטגוריה"
+          className="flex w-12 shrink-0 flex-col items-center gap-1 rounded-xl border border-dashed border-border py-2 text-muted transition-colors hover:border-accent/50 hover:text-accent cursor-pointer"
+        >
+          <Plus className="size-4" />
+          <span className="text-[10px] font-medium leading-tight">הוספה</span>
+        </button>
+      </div>
+
+      <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title="הוספת כפתורי קטגוריה">
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+          {groupedAvailable.size === 0 && (
+            <p className="text-sm text-muted">כל הקטגוריות כבר מוצגות.</p>
+          )}
+          {[...groupedAvailable.entries()].map(([groupLabel, groupTiles]) => (
+            <div key={groupLabel} className="space-y-1.5">
+              <p className="text-xs font-medium text-muted">{groupLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {groupTiles.map((tile) => {
+                  const Icon = tile.icon;
+                  return (
+                    <button
+                      key={tileKey(tile)}
+                      type="button"
+                      onClick={() => addTile(tileKey(tile))}
+                      className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-accent/50 cursor-pointer"
+                    >
+                      <Icon className="size-3.5" />
+                      {tile.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
+      </Modal>
+    </>
+  );
+}
+
+function QuickFilterTile({
+  tile,
+  active,
+  onSelect,
+  onRemove,
+}: {
+  tile: CategoryTile;
+  active: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+}) {
+  const Icon = tile.icon;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedRef = useRef(false);
+
+  function startPress() {
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      onRemove();
+    }, LONG_PRESS_MS);
+  }
+
+  function cancelPress() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }
+
+  function handleClick() {
+    if (firedRef.current) {
+      firedRef.current = false;
+      return;
+    }
+    onSelect();
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      onPointerDown={startPress}
+      onPointerUp={cancelPress}
+      onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
+      title="לחיצה ארוכה להסרה"
+      className={cn(
+        "flex w-12 shrink-0 flex-col items-center gap-1 rounded-xl border py-2 text-center transition-colors cursor-pointer",
+        active ? "border-accent bg-accent/15" : "border-border bg-surface hover:border-accent/40",
       )}
-    </div>
+    >
+      <Icon className={cn("size-4", active ? "text-accent" : "text-muted")} strokeWidth={1.75} />
+      <span
+        className={cn(
+          "line-clamp-1 text-[10px] font-medium leading-tight",
+          active ? "text-accent" : "text-muted",
+        )}
+      >
+        {tile.label}
+      </span>
+    </button>
   );
 }

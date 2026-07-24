@@ -1,3 +1,5 @@
+import { DEFAULT_TILE_KEYS } from "@/lib/quick-filter-tiles";
+
 export type ThemeMode = "light" | "dark" | "system";
 
 export type AccentPreset = {
@@ -23,6 +25,7 @@ export type AppSettings = {
   keepScreenAwake: boolean;
   timerSoundEnabled: boolean;
   autoHidePantryItems: boolean;
+  quickFilterTileKeys: string[];
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,6 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   keepScreenAwake: true,
   timerSoundEnabled: true,
   autoHidePantryItems: true,
+  quickFilterTileKeys: DEFAULT_TILE_KEYS,
 };
 
 export const SETTINGS_STORAGE_KEY = "recipe-app:settings";
