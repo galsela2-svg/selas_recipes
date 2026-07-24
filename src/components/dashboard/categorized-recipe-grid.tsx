@@ -17,7 +17,15 @@ const MEAL_TYPE_SECTIONS: { tag: string; icon: LucideIcon; label: string }[] = [
  * than one meal shows up in each) instead of one long undifferentiated
  * grid. Anything untagged still shows up, under "מתכונים נוספים".
  */
-export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
+export function CategorizedRecipeGrid({
+  recipes,
+  selectedIds,
+  onToggleSelect,
+}: {
+  recipes: Recipe[];
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+}) {
   const sections = MEAL_TYPE_SECTIONS.map((section) => ({
     ...section,
     recipes: recipes.filter((r) => r.dietary_tags.includes(section.tag)),
@@ -25,6 +33,7 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
 
   const categorizedIds = new Set(sections.flatMap((s) => s.recipes.map((r) => r.id)));
   const rest = recipes.filter((r) => !categorizedIds.has(r.id));
+  const selectable = Boolean(selectedIds);
 
   return (
     <div className="space-y-6">
@@ -36,7 +45,13 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {section.recipes.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                selectable={selectable}
+                selected={selectedIds?.has(recipe.id)}
+                onToggleSelect={() => onToggleSelect?.(recipe.id)}
+              />
             ))}
           </div>
         </div>
@@ -50,7 +65,13 @@ export function CategorizedRecipeGrid({ recipes }: { recipes: Recipe[] }) {
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
             {rest.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                selectable={selectable}
+                selected={selectedIds?.has(recipe.id)}
+                onToggleSelect={() => onToggleSelect?.(recipe.id)}
+              />
             ))}
           </div>
         </div>

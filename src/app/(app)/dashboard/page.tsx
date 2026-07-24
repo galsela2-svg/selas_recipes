@@ -26,6 +26,7 @@ import {
   Loader2,
   Meh,
   Milk,
+  Pencil,
   Pizza,
   RotateCcw,
   Salad,
@@ -36,11 +37,12 @@ import {
   Smile,
   Soup,
   Star,
+  Trash2,
   UtensilsCrossed,
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { useRecipes, useCreateRecipe } from "@/lib/queries/recipes";
+import { useRecipes, useCreateRecipe, useDeleteRecipe } from "@/lib/queries/recipes";
 import { useTags } from "@/lib/queries/tags";
 import { useAllCookLogs } from "@/lib/queries/cook-logs";
 import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
@@ -61,6 +63,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 type TimeBucket = "short" | "medium" | "long";
@@ -215,6 +218,37 @@ export default function DashboardPage() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState<RecipeOwner | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const deleteRecipe = useDeleteRecipe();
+
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map((id) => deleteRecipe.mutateAsync(id)));
+      setConfirmBulkDelete(false);
+      setSelectionMode(false);
+      setSelectedIds(new Set());
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   const activeTiles = useMemo(
     () =>
@@ -599,15 +633,54 @@ export default function DashboardPage() {
               <p className="font-serif text-lg font-bold text-foreground">
                 {isBrowsingUnfiltered ? "כל המתכונים" : `${filtered.length} התאמות`}
               </p>
-              {!isBrowsingUnfiltered && !showFilters && activeFilterCount > 0 && (
+              <div className="flex items-center gap-3">
+                {!isBrowsingUnfiltered && !showFilters && activeFilterCount > 0 && (
+                  <button
+                    onClick={() => setShowFilters(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                  >
+                    <ChevronDown className="size-3.5" />
+                    הצג סינון
+                  </button>
+                )}
                 <button
-                  onClick={() => setShowFilters(true)}
-                  className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                  onClick={toggleSelectionMode}
+                  title="עריכת מתכונים"
+                  className={cn(
+                    "flex size-8 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                    selectionMode
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-border text-muted hover:bg-surface-2",
+                  )}
                 >
-                  <ChevronDown className="size-3.5" />
-                  הצג סינון
+                  <Pencil className="size-3.5" />
                 </button>
-              )}
+              </div>
+            </div>
+          )}
+
+          {selectionMode && (
+            <div className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/10 px-3.5 py-2.5">
+              <p className="text-sm font-medium text-foreground">
+                {selectedIds.size > 0 ? `נבחרו ${selectedIds.size}` : "בחרו מתכונים למחיקה"}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleSelectionMode}
+                  className="text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                >
+                  ביטול
+                </button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                  מחיקה
+                </Button>
+              </div>
             </div>
           )}
 
@@ -630,14 +703,42 @@ export default function DashboardPage() {
               }
             />
           ) : isBrowsingUnfiltered ? (
-            <CategorizedRecipeGrid recipes={filtered} />
+            <CategorizedRecipeGrid
+              recipes={filtered}
+              selectedIds={selectionMode ? selectedIds : undefined}
+              onToggleSelect={toggleSelected}
+            />
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
               {filtered.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} />
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  selectable={selectionMode}
+                  selected={selectedIds.has(recipe.id)}
+                  onToggleSelect={() => toggleSelected(recipe.id)}
+                />
               ))}
             </div>
           )}
+
+          <Modal
+            open={confirmBulkDelete}
+            onClose={() => setConfirmBulkDelete(false)}
+            title="למחוק את המתכונים שנבחרו?"
+          >
+            <p className="mb-4 text-sm text-muted">
+              הפעולה תמחק לצמיתות {selectedIds.size} מתכונים. לא ניתן לבטל פעולה זו.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmBulkDelete(false)}>
+                ביטול
+              </Button>
+              <Button variant="danger" onClick={handleBulkDelete} loading={bulkDeleting}>
+                מחיקה
+              </Button>
+            </div>
+          </Modal>
 
           {showWebSuggestions && <WebRecipeSuggestions key={webQuery} query={webQuery} />}
         </>
