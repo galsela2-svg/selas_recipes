@@ -35,38 +35,58 @@ export function useAddPantryItem() {
   return useMutation({
     mutationFn: async (name: string) => {
       const trimmed = name.trim();
-      if (!trimmed) return;
+      if (!trimmed) return null;
 
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const { error } = await supabase
+      // ignoreDuplicates makes Postgres return nothing for a conflicting
+      // row, so .select() alone can come back empty even though the item
+      // already exists — re-select it explicitly in that case so the
+      // optimistic placeholder below always gets swapped for a real row.
+      const { data, error } = await supabase
         .from("pantry_items")
         .upsert(
           { name: trimmed, created_by: user?.id ?? null },
           { onConflict: "name", ignoreDuplicates: true },
-        );
+        )
+        .select()
+        .maybeSingle();
       if (error) throw error;
+      if (data) return data as PantryItem;
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("pantry_items")
+        .select("*")
+        .eq("name", trimmed)
+        .single();
+      if (fetchError) throw fetchError;
+      return existing as PantryItem;
     },
     // Optimistic insert so the item appears instantly instead of waiting
-    // for the round trip + refetch.
+    // for the round trip; swapped for the real row (real id) on success
+    // instead of triggering a full refetch.
     onMutate: async (name) => {
       const trimmed = name.trim();
       await queryClient.cancelQueries({ queryKey: pantryKeys.all });
       const previous = queryClient.getQueryData<PantryItem[]>(pantryKeys.all);
+      const optimisticId = `optimistic-${Date.now()}`;
       queryClient.setQueryData<PantryItem[]>(pantryKeys.all, (old) => [
         ...(old ?? []),
-        { id: `optimistic-${Date.now()}`, name: trimmed, created_by: null, created_at: new Date().toISOString() },
+        { id: optimisticId, name: trimmed, created_by: null, created_at: new Date().toISOString() },
       ]);
-      return { previous };
+      return { previous, optimisticId };
+    },
+    onSuccess: (data, _name, context) => {
+      if (!data) return;
+      queryClient.setQueryData<PantryItem[]>(pantryKeys.all, (old) =>
+        old?.map((item) => (item.id === context?.optimisticId ? data : item)),
+      );
     },
     onError: (_err, _name, context) => {
       if (context) queryClient.setQueryData(pantryKeys.all, context.previous);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
 }
@@ -91,9 +111,6 @@ export function useRemovePantryItem() {
     },
     onError: (_err, _id, context) => {
       if (context) queryClient.setQueryData(pantryKeys.all, context.previous);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pantryKeys.all });
     },
   });
 }

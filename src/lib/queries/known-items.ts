@@ -63,9 +63,13 @@ function invalidateKnownItems(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: knownItemKeys.detailed });
 }
 
+// Fire-and-forget usage tracking, called once per ingredient as it's typed
+// into a recipe — deliberately does *not* invalidate/refetch the known-items
+// lists on success. That used to force a full refetch (up to 500 rows) on
+// every single ingredient added while filling out a recipe, which made
+// typing feel laggy; the new/bumped item shows up next time those lists
+// naturally refetch (staleTime, navigation, or another mutation).
 export function useRecordKnownItems() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (names: string[]) => {
       const cleaned = Array.from(
@@ -80,7 +84,6 @@ export function useRecordKnownItems() {
         ),
       );
     },
-    onSuccess: () => invalidateKnownItems(queryClient),
   });
 }
 

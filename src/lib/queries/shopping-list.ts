@@ -106,9 +106,8 @@ export function useToggleShoppingItem() {
     onError: (_err, _vars, context) => {
       if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
-    },
+    // No onSettled refetch — see the same note on useToggleFavorite in
+    // queries/recipes.ts; the optimistic update is already correct here.
   });
 }
 
@@ -136,9 +135,6 @@ export function useDeleteShoppingItem() {
     },
     onError: (_err, _id, context) => {
       if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
     },
   });
 }
@@ -169,9 +165,6 @@ export function useDeleteShoppingItemsByRecipe() {
     onError: (_err, _recipeId, context) => {
       if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
-    },
   });
 }
 
@@ -187,8 +180,17 @@ export function useClearCheckedItems() {
         .eq("checked", true);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
+    // Optimistic removal, same pattern as the other list mutations above.
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: shoppingListKeys.all });
+      const previous = queryClient.getQueryData<ShoppingListItem[]>(shoppingListKeys.all);
+      queryClient.setQueryData<ShoppingListItem[]>(shoppingListKeys.all, (old) =>
+        old?.filter((item) => !item.checked),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context) queryClient.setQueryData(shoppingListKeys.all, context.previous);
     },
   });
 }

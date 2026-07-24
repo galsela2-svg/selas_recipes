@@ -77,8 +77,12 @@ export function useCreateRecipe() {
       await recordIngredientHistory(input.ingredients);
       return data as Recipe;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
+    // Patches the cache directly with the row Supabase just returned instead
+    // of invalidating + refetching the whole collection — same end state,
+    // one request instead of two.
+    onSuccess: (data) => {
+      queryClient.setQueryData<Recipe[]>(recipeKeys.all, (old) => (old ? [data, ...old] : [data]));
+      queryClient.setQueryData(recipeKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: knownItemKeys.all });
     },
   });
@@ -102,8 +106,10 @@ export function useUpdateRecipe() {
       return data as Recipe;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
-      queryClient.invalidateQueries({ queryKey: recipeKeys.detail(data.id) });
+      queryClient.setQueryData<Recipe[]>(recipeKeys.all, (old) =>
+        old?.map((r) => (r.id === data.id ? data : r)),
+      );
+      queryClient.setQueryData(recipeKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: knownItemKeys.all });
     },
   });
@@ -143,10 +149,11 @@ export function useToggleFavorite() {
       queryClient.setQueryData(recipeKeys.all, context.previousList);
       queryClient.setQueryData(recipeKeys.detail(context.id), context.previousDetail);
     },
-    onSettled: (_data, _error, { id }) => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
-      queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) });
-    },
+    // No onSettled refetch — the optimistic update above is already the
+    // correct end state on success, and onError above already reverts it on
+    // failure, so a follow-up refetch here would only be redundant network
+    // traffic (realtime still catches this recipe's real change for *other*
+    // devices, this is just avoiding fetching it a second time on this one).
   });
 }
 
@@ -160,8 +167,9 @@ export function useDeleteRecipe() {
       if (error) throw error;
       return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
+    onSuccess: (id) => {
+      queryClient.setQueryData<Recipe[]>(recipeKeys.all, (old) => old?.filter((r) => r.id !== id));
+      queryClient.removeQueries({ queryKey: recipeKeys.detail(id) });
     },
   });
 }
