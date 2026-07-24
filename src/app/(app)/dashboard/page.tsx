@@ -199,7 +199,6 @@ export default function DashboardPage() {
   const { data: cookLogs } = useAllCookLogs();
   const tags = useTags();
   const [search, setSearch] = useState("");
-  const [ingredientQuery, setIngredientQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null);
@@ -253,7 +252,6 @@ export default function DashboardPage() {
     (timeBucket ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
     (favoritesOnly ? 1 : 0) +
-    (ingredientQuery.trim() ? 1 : 0) +
     (ownerFilter ? 1 : 0);
 
   function resetFilters() {
@@ -262,7 +260,6 @@ export default function DashboardPage() {
     setTimeBucket(null);
     setMinRating(0);
     setFavoritesOnly(false);
-    setIngredientQuery("");
     setOwnerFilter(null);
   }
 
@@ -299,7 +296,6 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     if (!recipes) return [];
     const query = search.trim().toLowerCase();
-    const ingredientNeedle = ingredientQuery.trim().toLowerCase();
 
     const matches = recipes.filter((recipe) => {
       const matchesSearch =
@@ -308,9 +304,6 @@ export default function DashboardPage() {
         recipe.description?.toLowerCase().includes(query) ||
         recipe.ingredients.some((i) => i.toLowerCase().includes(query)) ||
         recipe.instructions.some((i) => i.toLowerCase().includes(query));
-      const matchesIngredient =
-        !ingredientNeedle ||
-        recipe.ingredients.some((i) => i.toLowerCase().includes(ingredientNeedle));
       const matchesTag = !activeTag || recipe.tags.includes(activeTag);
       const matchesDietary = selectedDietary.every((d) => recipe.dietary_tags.includes(d));
       const matchesFavorite = !favoritesOnly || recipe.is_favorite;
@@ -320,7 +313,6 @@ export default function DashboardPage() {
       const matchesRating = minRating === 0 || (ratingByRecipeId.get(recipe.id) ?? 0) >= minRating;
       return (
         matchesSearch &&
-        matchesIngredient &&
         matchesTag &&
         matchesDietary &&
         matchesFavorite &&
@@ -334,7 +326,6 @@ export default function DashboardPage() {
   }, [
     recipes,
     search,
-    ingredientQuery,
     activeTag,
     selectedDietary,
     favoritesOnly,
@@ -349,13 +340,12 @@ export default function DashboardPage() {
   const webQuery = useMemo(() => {
     const parts: string[] = [];
     if (search.trim()) parts.push(search.trim());
-    if (ingredientQuery.trim()) parts.push(ingredientQuery.trim());
     if (activeTag) parts.push(activeTag);
     parts.push(...selectedDietary);
     const timeHint = timeBucket ? TIME_BUCKET_SEARCH_HINT[timeBucket] : undefined;
     if (timeHint) parts.push(timeHint);
     return parts.join(" ").trim();
-  }, [search, ingredientQuery, activeTag, selectedDietary, timeBucket]);
+  }, [search, activeTag, selectedDietary, timeBucket]);
 
   // Web suggestions matching the same requirements show up whenever the
   // local collection doesn't have much to offer — not only when it's
@@ -391,6 +381,34 @@ export default function DashboardPage() {
         <WebSearchMode />
       ) : (
         <>
+          <div className="grid grid-cols-4 gap-1.5 rounded-xl border border-border bg-surface p-1">
+            <button
+              onClick={() => setOwnerFilter(null)}
+              className={cn(
+                "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                ownerFilter === null
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              הכול
+            </button>
+            {RECIPE_OWNERS.map((owner) => (
+              <button
+                key={owner}
+                onClick={() => setOwnerFilter(ownerFilter === owner ? null : owner)}
+                className={cn(
+                  "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                  ownerFilter === owner
+                    ? "bg-accent/15 text-accent"
+                    : "text-muted hover:text-foreground",
+                )}
+              >
+                {owner}
+              </button>
+            ))}
+          </div>
+
           {!isLoading && <CategoryTiles isActive={isTileActive} onSelect={handleTileSelect} />}
 
           {isLoading ? (
@@ -430,7 +448,7 @@ export default function DashboardPage() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="חיפוש במתכונים שלכם..."
+                  placeholder="חיפוש לפי שם, מרכיב, תיאור..."
                   className="ps-9"
                 />
               </div>
@@ -479,30 +497,6 @@ export default function DashboardPage() {
                     </button>
                   )}
                 </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted">סינון לפי מצרך ספציפי</p>
-                  <Input
-                    value={ingredientQuery}
-                    onChange={(e) => setIngredientQuery(e.target.value)}
-                    placeholder="רק מתכונים שמכילים... לדוגמה: לימון"
-                  />
-                </div>
-
-                <FilterRow label="מי הכין/ה">
-                  <Badge active={ownerFilter === null} onClick={() => setOwnerFilter(null)}>
-                    הכול
-                  </Badge>
-                  {RECIPE_OWNERS.map((owner) => (
-                    <Badge
-                      key={owner}
-                      active={ownerFilter === owner}
-                      onClick={() => setOwnerFilter(ownerFilter === owner ? null : owner)}
-                    >
-                      {owner}
-                    </Badge>
-                  ))}
-                </FilterRow>
 
                 {tags.length > 0 && (
                   <FilterRow label="תגית">
