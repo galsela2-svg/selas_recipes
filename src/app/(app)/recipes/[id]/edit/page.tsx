@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRecipe, useUpdateRecipe } from "@/lib/queries/recipes";
 import { useToast } from "@/components/providers/toast-provider";
@@ -18,14 +18,19 @@ export default function EditRecipePage({
   const { showToast } = useToast();
   const { data: recipe, isLoading } = useRecipe(id);
   const { mutate, isPending } = useUpdateRecipe();
+  const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(input: RecipeInput) {
+    setError(null);
     mutate(
       { id, input },
       {
         onSuccess: () => {
           showToast("השינויים נשמרו בהצלחה!");
           router.push("/dashboard");
+        },
+        onError: (err) => {
+          setError(err instanceof Error ? err.message : "לא הצלחנו לשמור את השינויים. נסו שוב.");
         },
       },
     );
@@ -41,6 +46,7 @@ export default function EditRecipePage({
         submitLabel="שמירת שינויים"
         submitting={isPending}
       />
+      {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }
