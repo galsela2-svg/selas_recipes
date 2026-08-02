@@ -16,12 +16,14 @@ export function RecipeCard({
   selectable,
   selected,
   onToggleSelect,
+  highlighted,
 }: {
   recipe: Recipe;
   badge?: string | null;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  highlighted?: boolean;
 }) {
   const toggleFavorite = useToggleFavorite();
   const totalTime = (recipe.prep_time_minutes ?? 0) + (recipe.cook_time_minutes ?? 0);
@@ -40,11 +42,13 @@ export function RecipeCard({
 
   return (
     <Link
+      id={`recipe-${recipe.id}`}
       href={`/recipes/${recipe.id}`}
       onClick={handleClick}
       className={cn(
         "group relative flex aspect-square w-full flex-col overflow-hidden rounded-xl bg-surface-2 shadow-sm transition-shadow hover:shadow-xl",
         selectable && selected && "ring-2 ring-accent",
+        highlighted && "ring-4 ring-accent animate-pulse",
       )}
     >
       {recipe.image_url ? (

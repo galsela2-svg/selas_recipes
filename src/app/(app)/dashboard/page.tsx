@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, Heart, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
 import { DIETARY_TAG_GROUPS, type RecipeOwner } from "@/lib/types";
@@ -30,7 +31,26 @@ export default function DashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const searchParams = useSearchParams();
+  // Landing here right after saving a recipe (?highlight=<id>) scrolls to
+  // and briefly rings that card, so "save" visibly lands you on the recipe
+  // in its place in the collection instead of just a toast. Seeded once from
+  // the URL, then cleared locally once the highlight has played.
+  const [highlightedId, setHighlightedId] = useState<string | null>(() =>
+    searchParams.get("highlight"),
+  );
   const deleteRecipe = useDeleteRecipe();
+
+  useEffect(() => {
+    if (!highlightedId || isLoading) return;
+    const el = document.getElementById(`recipe-${highlightedId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timeout = setTimeout(() => {
+      setHighlightedId(null);
+      window.history.replaceState(null, "", "/dashboard");
+    }, 2500);
+    return () => clearTimeout(timeout);
+  }, [highlightedId, isLoading, recipes]);
 
   function toggleSelectionMode() {
     setSelectionMode((prev) => !prev);
@@ -268,6 +288,7 @@ export default function DashboardPage() {
               recipes={filtered}
               selectedIds={selectionMode ? selectedIds : undefined}
               onToggleSelect={toggleSelected}
+              highlightedId={highlightedId}
             />
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
@@ -278,6 +299,7 @@ export default function DashboardPage() {
                   selectable={selectionMode}
                   selected={selectedIds.has(recipe.id)}
                   onToggleSelect={() => toggleSelected(recipe.id)}
+                  highlighted={recipe.id === highlightedId}
                 />
               ))}
             </div>

@@ -21,10 +21,12 @@ export function CategorizedRecipeGrid({
   recipes,
   selectedIds,
   onToggleSelect,
+  highlightedId,
 }: {
   recipes: Recipe[];
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  highlightedId?: string | null;
 }) {
   const sections = MEAL_TYPE_SECTIONS.map((section) => ({
     ...section,
@@ -51,6 +53,7 @@ export function CategorizedRecipeGrid({
                 selectable={selectable}
                 selected={selectedIds?.has(recipe.id)}
                 onToggleSelect={() => onToggleSelect?.(recipe.id)}
+                highlighted={recipe.id === highlightedId}
               />
             ))}
           </div>
@@ -71,6 +74,7 @@ export function CategorizedRecipeGrid({
                 selectable={selectable}
                 selected={selectedIds?.has(recipe.id)}
                 onToggleSelect={() => onToggleSelect?.(recipe.id)}
+                highlighted={recipe.id === highlightedId}
               />
             ))}
           </div>

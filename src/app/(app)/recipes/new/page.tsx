@@ -18,7 +18,7 @@ export default function NewRecipePage() {
     mutate(input, {
       onSuccess: (recipe) => {
         showToast(`"${recipe.title}" נשמר בהצלחה!`);
-        router.push(`/recipes/${recipe.id}`);
+        router.push(`/dashboard?highlight=${recipe.id}`);
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : "לא הצלחנו לשמור את המתכון. נסו שוב.");
