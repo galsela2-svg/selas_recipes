@@ -11,10 +11,19 @@ import { createClient } from "@/lib/supabase/client";
 import type { Recipe, RecipeInput } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
 
+// Best-effort only: this just powers ingredient autocomplete history, so a
+// failure here (network blip, RPC hiccup) must never surface as "the recipe
+// didn't save" — the recipe itself is already committed by the time this
+// runs.
 async function recordIngredientHistory(ingredients: string[]) {
   if (ingredients.length === 0) return;
-  const supabase = createClient();
-  await supabase.rpc("record_known_items", { item_names: ingredients });
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.rpc("record_known_items", { item_names: ingredients });
+    if (error) throw error;
+  } catch (err) {
+    console.error("record_known_items failed", err);
+  }
 }
 
 export const recipeKeys = {
