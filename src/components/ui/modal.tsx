@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -25,7 +26,10 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  // Portaled to <body> rather than rendered in place — callers can (and do)
+  // open a Modal from inside inline-only elements like <p>, where a plain
+  // <div> here would be invalid HTML and break hydration.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -43,6 +47,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
