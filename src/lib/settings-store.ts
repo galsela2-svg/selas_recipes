@@ -1,3 +1,5 @@
+import { DEFAULT_TILE_KEYS } from "@/lib/quick-filter-tiles";
+
 export type ThemeMode = "light" | "dark" | "system";
 
 export type AccentPreset = {
@@ -22,12 +24,14 @@ export type AppSettings = {
   defaultUnitSystem: "imperial" | "metric";
   keepScreenAwake: boolean;
   timerSoundEnabled: boolean;
+  quickFilterTileKeys: string[];
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "light",
   accentId: "rose",
   defaultUnitSystem: "metric",
+  quickFilterTileKeys: DEFAULT_TILE_KEYS,
   keepScreenAwake: true,
   timerSoundEnabled: true,
 };

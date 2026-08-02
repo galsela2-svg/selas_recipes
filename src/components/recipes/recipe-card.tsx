@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { CheckCircle2, Circle, Clock, Heart, ImageOff } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -49,12 +48,14 @@ export function RecipeCard({
       )}
     >
       {recipe.image_url ? (
-        <Image
+        // Recipe images come from arbitrary external sites/Instagram, not
+        // just our own Storage bucket, so a next/image domain allowlist
+        // isn't practical here (same reasoning as the recipe detail page).
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={recipe.image_url}
           alt={recipe.title}
-          fill
-          sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 20vw"
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       ) : (
         <div className="flex size-full items-center justify-center text-muted">
