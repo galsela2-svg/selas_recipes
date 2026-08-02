@@ -72,7 +72,15 @@ export function useAddShoppingItems() {
 
       if (error) throw error;
 
-      await supabase.rpc("record_known_items", { item_names: cleaned });
+      // Best-effort only: this just powers ingredient autocomplete history,
+      // so a failure here must never surface as "adding to the list failed"
+      // — the items themselves are already committed by the time this runs.
+      try {
+        const { error: rpcError } = await supabase.rpc("record_known_items", { item_names: cleaned });
+        if (rpcError) throw rpcError;
+      } catch (err) {
+        console.error("record_known_items failed", err);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
