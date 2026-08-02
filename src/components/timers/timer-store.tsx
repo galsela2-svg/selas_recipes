@@ -25,6 +25,7 @@ type TimerContextValue = {
   addTimer: (label: string, minutes: number) => void;
   toggleTimer: (id: string) => void;
   removeTimer: (id: string) => void;
+  snoozeTimer: (id: string, minutes: number) => void;
 };
 
 const TimerContext = createContext<TimerContextValue | null>(null);
@@ -85,6 +86,18 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setTimers((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Restarts a finished timer for another stretch (a manual duration or one
+  // of the fixed presets) instead of making the user re-find the step and
+  // tap its time again.
+  const snoozeTimer = useCallback((id: string, minutes: number) => {
+    const totalSeconds = Math.round(minutes * 60);
+    setTimers((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, totalSeconds, remainingSeconds: totalSeconds, running: true, finished: false } : t,
+      ),
+    );
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setTimers((prev) =>
@@ -104,7 +117,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <TimerContext.Provider value={{ timers, addTimer, toggleTimer, removeTimer }}>
+    <TimerContext.Provider value={{ timers, addTimer, toggleTimer, removeTimer, snoozeTimer }}>
       {children}
     </TimerContext.Provider>
   );
