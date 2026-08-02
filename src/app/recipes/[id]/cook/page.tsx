@@ -6,6 +6,7 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   Layers,
   ListChecks,
   Loader2,
@@ -98,6 +99,17 @@ export default function CookingModePage({
           {recipe.title}
         </h1>
         <div className="flex items-center gap-3">
+          {recipe.source_url && (
+            <a
+              href={recipe.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="קישור למקור"
+              className="flex items-center gap-2 text-sm text-muted hover:text-foreground"
+            >
+              <ExternalLink className="size-5" />
+            </a>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={addPhoto.isPending}
@@ -136,7 +148,7 @@ export default function CookingModePage({
               </p>
 
               <p className="max-w-3xl text-center text-3xl font-medium leading-relaxed text-foreground sm:text-4xl">
-                <InstructionText text={currentStep} />
+                <InstructionText text={currentStep} ingredients={recipe.ingredients} />
               </p>
 
               {nextStep && (
@@ -158,7 +170,7 @@ export default function CookingModePage({
                     {nextIsParallel ? "לעשות במקביל" : "השלב הבא"}
                   </p>
                   <p className={cn("text-sm", nextIsParallel ? "text-foreground" : "text-muted")}>
-                    <InstructionText text={nextStep} />
+                    <InstructionText text={nextStep} ingredients={recipe.ingredients} />
                   </p>
                 </div>
               )}

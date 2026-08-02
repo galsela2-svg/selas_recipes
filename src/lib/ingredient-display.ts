@@ -31,13 +31,43 @@ function matchLeadingFractionWord(text: string): { value: number; rest: string }
   return null;
 }
 
+// Hebrew "counting" words for recipe ingredients that have no measurable
+// ml/g equivalent (a garlic clove, a slice, a can) — so they don't belong in
+// unit-conversion.ts's real conversion table — but should still stay
+// attached to the number as part of the quantity, e.g. "3 שיניים שום" should
+// split into name "שום" / quantity "3 שיניים", not name "שיניים שום".
+const COUNT_WORDS = [
+  "שיניים", "שן",
+  "פרוסות", "פרוסה",
+  "יחידות", "יחידה",
+  "חבילות", "חבילה",
+  "קופסאות", "קופסה",
+  "עלים", "עלה",
+  "גבעולים", "גבעול",
+  "ענפים", "ענף",
+  "חתיכות", "חתיכה",
+  "שקיות", "שקית",
+  "גביעים", "גביע",
+];
+
+function splitLeadingCountWord(text: string): { label: string; rest: string } | null {
+  const trimmed = text.trimStart();
+  for (const word of COUNT_WORDS) {
+    if (!trimmed.startsWith(word)) continue;
+    const boundary = trimmed[word.length];
+    if (boundary !== undefined && !/\s/.test(boundary)) continue;
+    return { label: word, rest: trimmed.slice(word.length).trimStart() };
+  }
+  return null;
+}
+
 // "X וחצי" — "כף וחצי" (a tablespoon and a half), "2 כוסות וחצי" (2.5 cups)
 // — adds half a unit on top of whatever count precedes it (implicitly 1,
 // if there's no explicit number before the unit).
 const TRAILING_HALF_REGEX = /^ו?חצי(?=\s|$)/;
 
 function finishSplit(value: number, rest: string, original: string): SplitIngredient {
-  const unit = splitLeadingUnit(rest);
+  const unit = splitLeadingUnit(rest) ?? splitLeadingCountWord(rest);
   let finalValue = value;
   let finalRest = unit ? unit.rest : rest;
 
@@ -64,7 +94,7 @@ export function splitIngredientQuantity(text: string): SplitIngredient {
       // Ranges keep their existing simple behavior — combining a range
       // with "וחצי" isn't a real-world phrasing worth handling.
       const valueLabel = `${formatQuantity(parsed.value)}–${formatQuantity(parsed.rangeEnd)}`;
-      const unit = splitLeadingUnit(parsed.rest);
+      const unit = splitLeadingUnit(parsed.rest) ?? splitLeadingCountWord(parsed.rest);
       return unit
         ? { name: unit.rest || text, quantity: `${valueLabel} ${unit.label}` }
         : { name: parsed.rest || text, quantity: valueLabel };
