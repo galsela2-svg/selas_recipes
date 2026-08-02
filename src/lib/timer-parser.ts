@@ -2,7 +2,12 @@ export type TimerMatch = {
   start: number;
   end: number;
   label: string;
+  /** Default duration — the range's upper end when rangeMinMinutes is set. */
   minutes: number;
+  /** Present only for a written range ("20-25 דקות") — lets the caller offer
+   * a picker instead of jumping straight to `minutes`. */
+  rangeMinMinutes?: number;
+  rangeMaxMinutes?: number;
 };
 
 const UNIT_PATTERN = "(?:hours?|hrs?|שעות|שעה|minutes?|mins?|min|דקות|דקה)";
@@ -48,16 +53,28 @@ export function parseTimersInText(text: string): TimerMatch[] {
     const [full, numRaw, rangeRaw, unitRaw, extraNumRaw, extraUnitRaw] = match;
     const num = Number(numRaw);
     let minutes = unitToMinutes(num, unitRaw);
+    let rangeMinMinutes: number | undefined;
+    let rangeMaxMinutes: number | undefined;
 
     if (extraNumRaw && extraUnitRaw) {
       minutes += unitToMinutes(Number(extraNumRaw), extraUnitRaw);
     } else if (rangeRaw) {
-      // Use the upper end of a range ("20-25 minutes") as the timer duration.
-      minutes = unitToMinutes(Number(rangeRaw), unitRaw);
+      // A written range ("20-25 minutes") — default to the upper end, but
+      // remember both bounds so the caller can offer a picker instead.
+      rangeMinMinutes = minutes;
+      rangeMaxMinutes = unitToMinutes(Number(rangeRaw), unitRaw);
+      minutes = rangeMaxMinutes;
     }
 
     if (minutes <= 0) continue;
-    matches.push({ start: match.index, end: match.index + full.length, label: full.trim(), minutes });
+    matches.push({
+      start: match.index,
+      end: match.index + full.length,
+      label: full.trim(),
+      minutes,
+      rangeMinMinutes,
+      rangeMaxMinutes,
+    });
   }
 
   WORDY_REGEX.lastIndex = 0;
