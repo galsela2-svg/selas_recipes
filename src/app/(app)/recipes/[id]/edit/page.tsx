@@ -6,6 +6,7 @@ import { useRecipe, useUpdateRecipe } from "@/lib/queries/recipes";
 import { useToast } from "@/components/providers/toast-provider";
 import { RecipeForm } from "@/components/recipes/recipe-form";
 import { Spinner } from "@/components/ui/spinner";
+import { describeError } from "@/lib/utils";
 import type { RecipeInput } from "@/lib/types";
 
 export default function EditRecipePage({
@@ -30,7 +31,7 @@ export default function EditRecipePage({
           router.push("/dashboard");
         },
         onError: (err) => {
-          setError(err instanceof Error ? err.message : "לא הצלחנו לשמור את השינויים. נסו שוב.");
+          setError(describeError(err, "לא הצלחנו לשמור את השינויים. נסו שוב."));
         },
       },
     );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCreateRecipe } from "@/lib/queries/recipes";
 import { useToast } from "@/components/providers/toast-provider";
 import { RecipeForm } from "@/components/recipes/recipe-form";
+import { describeError } from "@/lib/utils";
 import type { RecipeInput } from "@/lib/types";
 
 export default function NewRecipePage() {
@@ -21,7 +22,7 @@ export default function NewRecipePage() {
         router.push(`/dashboard?highlight=${recipe.id}`);
       },
       onError: (err) => {
-        setError(err instanceof Error ? err.message : "לא הצלחנו לשמור את המתכון. נסו שוב.");
+        setError(describeError(err, "לא הצלחנו לשמור את המתכון. נסו שוב."));
       },
     });
   }
