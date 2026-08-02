@@ -205,18 +205,30 @@ export default function RecipeDetailPage({
       </Modal>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-start justify-end gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/recipes/${id}/cook`}>
-              <Button variant="secondary">
-                <ChefHat className="size-4" />
-                בישול
-              </Button>
-            </Link>
+        {recipe.source_url && (
+          <a
+            href={recipe.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 self-start text-sm text-muted hover:text-accent"
+          >
+            <ExternalLink className="size-3.5" />
+            קישור למקור
+          </a>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href={`/recipes/${id}/cook`} className="flex-1 sm:flex-none">
+            <Button size="lg" className="w-full sm:w-auto">
+              <ChefHat className="size-5" />
+              בישול
+            </Button>
+          </Link>
+
+          <div className="flex flex-wrap items-center gap-2">
             <Link href={`/recipes/${id}/edit`}>
-              <Button variant="secondary">
+              <Button variant="ghost" title="עריכה" aria-label="עריכה">
                 <Pencil className="size-4" />
-                עריכה
               </Button>
             </Link>
             <Button variant="danger" onClick={() => setConfirmDelete(true)}>
@@ -241,17 +253,6 @@ export default function RecipeDetailPage({
               <Users className="size-4" />
               {recipe.servings} מנות (מקורי)
             </span>
-          )}
-          {recipe.source_url && (
-            <a
-              href={recipe.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-accent"
-            >
-              <ExternalLink className="size-4" />
-              מקור
-            </a>
           )}
         </div>
 
