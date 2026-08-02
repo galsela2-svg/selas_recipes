@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useEffect, useMemo, useRef, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera,
   ChefHat,
@@ -18,15 +17,12 @@ import {
   Users,
 } from "lucide-react";
 import {
-  recipeKeys,
   useDeleteRecipe,
   useRecipe,
   useToggleFavorite,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
-import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
-import { usePantryItems, isIngredientInPantry } from "@/lib/queries/pantry";
 import { cn, formatMinutes } from "@/lib/utils";
 import { scaleIngredientText } from "@/lib/quantity-scaling";
 import { parseTimersInText } from "@/lib/timer-parser";
@@ -42,8 +38,6 @@ import { Modal } from "@/components/ui/modal";
 import { RecipePhotoGallery } from "@/components/recipes/recipe-photo-gallery";
 import { ServingsAdjuster } from "@/components/recipes/servings-adjuster";
 import { InstructionText } from "@/components/recipes/instruction-text";
-import { CookLogSection } from "@/components/recipes/cook-log-section";
-import { AiUpgradePanel } from "@/components/recipes/ai-upgrade-panel";
 import { ImageField } from "@/components/recipes/image-field";
 import { useSettings } from "@/components/providers/settings-provider";
 
@@ -54,9 +48,7 @@ export default function RecipeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: recipe, isLoading } = useRecipe(id);
-  const { data: pantryItems } = usePantryItems();
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
@@ -66,32 +58,21 @@ export default function RecipeDetailPage({
   const [added, setAdded] = useState(false);
   const [targetServings, setTargetServings] = useState<number | null>(null);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>(() => settings.defaultUnitSystem);
-  const [hideHavePantryItems, setHideHavePantryItems] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [draftImageUrl, setDraftImageUrl] = useState("");
 
   const baseServings = recipe?.servings ?? 1;
   const servings = targetServings ?? baseServings;
   const multiplier = servings / baseServings;
-  const pantryNames = useMemo(() => (pantryItems ?? []).map((p) => p.name), [pantryItems]);
 
   const scaledIngredients = useMemo(() => {
     if (!recipe) return [];
     return recipe.ingredients.map((ingredient) => {
       const scaled = scaleIngredientText(ingredient, multiplier);
       const converted = convertIngredientLine(scaled, unitSystem);
-      const inPantry = isIngredientInPantry(ingredient, pantryNames);
-      return { original: ingredient, text: converted, inPantry };
+      return { original: ingredient, text: converted };
     });
-  }, [recipe, multiplier, unitSystem, pantryNames]);
-
-  const visibleIngredients = hideHavePantryItems
-    ? scaledIngredients.filter((i) => !i.inPantry)
-    : scaledIngredients;
-
-  const itemsForShoppingList = settings.autoHidePantryItems
-    ? scaledIngredients.filter((i) => !i.inPantry)
-    : scaledIngredients;
+  }, [recipe, multiplier, unitSystem]);
 
   function buildInputWithImage(image_url: string | null) {
     if (!recipe) return null;
@@ -111,50 +92,15 @@ export default function RecipeDetailPage({
     };
   }
 
-  // Best-effort, silent: a recipe with no cover image gets one searched for
-  // and set automatically the first time its page is opened — covers both
-  // freshly-created recipes and older ones that never had an image. Runs
-  // once per recipe per page visit; a failed search just leaves it blank,
-  // same as today, with no error shown (this shouldn't ever feel broken).
-  const coverSearchAttempted = useRef<string | null>(null);
-  useEffect(() => {
-    if (!recipe || recipe.image_url || coverSearchAttempted.current === recipe.id) return;
-    coverSearchAttempted.current = recipe.id;
-
-    let cancelled = false;
-    fetch("/api/find-cover-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: recipe.title }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
-        if (cancelled || !body?.image_url) return;
-        // Re-check against the live cache, not the closed-over `recipe` —
-        // the user may have set an image by hand while this search was
-        // still in flight, and that manual choice should win.
-        const current = queryClient.getQueryData<Recipe>(recipeKeys.detail(recipe.id));
-        if (current && current.image_url) return;
-        const input = buildInputWithImage(body.image_url as string);
-        if (input) updateRecipe.mutate({ id: recipe.id, input });
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipe?.id, recipe?.image_url]);
-
   if (isLoading || !recipe) return <Spinner />;
 
   const totalTime =
     (recipe.prep_time_minutes ?? 0) + (recipe.cook_time_minutes ?? 0);
 
   function handleAddToShoppingList() {
-    if (!recipe || itemsForShoppingList.length === 0) return;
+    if (!recipe || scaledIngredients.length === 0) return;
     addShoppingItems.mutate(
-      { names: itemsForShoppingList.map((i) => i.text), recipeId: recipe.id },
+      { names: scaledIngredients.map((i) => i.text), recipeId: recipe.id },
       { onSuccess: () => setAdded(true) },
     );
   }
@@ -246,11 +192,7 @@ export default function RecipeDetailPage({
 
       <Modal open={showImageModal} onClose={() => setShowImageModal(false)} title="תמונת המתכון">
         <div className="space-y-4">
-          <ImageField
-            value={draftImageUrl}
-            onChange={setDraftImageUrl}
-            defaultSearchQuery={recipe.title}
-          />
+          <ImageField value={draftImageUrl} onChange={setDraftImageUrl} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowImageModal(false)}>
               ביטול
@@ -271,7 +213,6 @@ export default function RecipeDetailPage({
                 בישול
               </Button>
             </Link>
-            <AiUpgradePanel recipe={recipe} />
             <Link href={`/recipes/${id}/edit`}>
               <Button variant="secondary">
                 <Pencil className="size-4" />
@@ -333,14 +274,10 @@ export default function RecipeDetailPage({
         <Button
           onClick={handleAddToShoppingList}
           loading={addShoppingItems.isPending}
-          disabled={itemsForShoppingList.length === 0}
+          disabled={scaledIngredients.length === 0}
         >
           <ShoppingCart className="size-4" />
-          {added
-            ? "נוסף לרשימת הקניות"
-            : itemsForShoppingList.length === 0
-              ? "כל המרכיבים כבר יש לכם במזווה"
-              : "הוספה לרשימת קניות"}
+          {added ? "נוסף לרשימת הקניות" : "הוספה לרשימת קניות"}
         </Button>
       </div>
 
@@ -377,33 +314,10 @@ export default function RecipeDetailPage({
 
           <ServingsAdjuster servings={servings} onChange={setTargetServings} />
 
-          {pantryNames.length > 0 && (
-            <label className="flex items-center gap-2 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={hideHavePantryItems}
-                onChange={(e) => setHideHavePantryItems(e.target.checked)}
-                className="size-4 accent-[var(--accent)]"
-              />
-              הסתר מרכיבים שכבר יש לי במזווה
-            </label>
-          )}
-
           <ul className="space-y-2">
-            {visibleIngredients.map((ingredient, i) => (
-              <li
-                key={i}
-                className={cn(
-                  "flex gap-2 text-sm",
-                  ingredient.inPantry ? "text-muted line-through" : "text-foreground",
-                )}
-              >
-                <span
-                  className={cn(
-                    "mt-1.5 size-1.5 shrink-0 rounded-full",
-                    ingredient.inPantry ? "bg-success" : "bg-accent",
-                  )}
-                />
+            {scaledIngredients.map((ingredient, i) => (
+              <li key={i} className="flex gap-2 text-sm text-foreground">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                 {ingredient.text}
               </li>
             ))}
@@ -434,8 +348,6 @@ export default function RecipeDetailPage({
           </ol>
         </div>
       </div>
-
-      <CookLogSection recipeId={recipe.id} />
 
       <Modal
         open={confirmDelete}

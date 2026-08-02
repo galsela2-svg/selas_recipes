@@ -1,4 +1,4 @@
-import type { CookLog, PantryItem, Recipe } from "@/lib/types";
+import type { Recipe } from "@/lib/types";
 
 export function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
@@ -55,11 +55,7 @@ export function recipesToCsv(recipes: Recipe[]): string {
   return toCsv(headers, rows);
 }
 
-export function backupToJson(data: {
-  recipes: Recipe[];
-  cookLogs: CookLog[];
-  pantryItems: PantryItem[];
-}): string {
+export function backupToJson(data: { recipes: Recipe[] }): string {
   return JSON.stringify(
     {
       exported_at: new Date().toISOString(),

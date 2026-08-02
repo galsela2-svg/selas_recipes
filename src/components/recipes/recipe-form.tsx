@@ -12,7 +12,6 @@ import {
   type RecipeOwner,
 } from "@/lib/types";
 import { cn, linesToList, listToLines } from "@/lib/utils";
-import { PENDING_IMPORT_KEY } from "@/lib/pending-import";
 import { useDefaultOwner } from "@/lib/default-owner";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
@@ -20,28 +19,13 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { TagInput } from "@/components/recipes/tag-input";
 import { EditableTag } from "@/components/recipes/editable-tag";
-import { ParseUrlPanel } from "@/components/recipes/parse-url-panel";
+import { RecipeImportPanel } from "@/components/recipes/recipe-import-panel";
 import { ImageField } from "@/components/recipes/image-field";
 import { IngredientListInput } from "@/components/recipes/ingredient-list-input";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
 const CUSTOM_TAGS_GROUP = "תגיות נוספות";
 const DIFFICULTY_OPTIONS = DIETARY_TAG_GROUPS.find((g) => g.label === "רמת קושי")?.options ?? [];
-
-// Picks up a recipe handed off from the web-search results page, if any.
-// Reading + clearing sessionStorage here (inside a lazy useState
-// initializer) runs exactly once on mount, before first paint.
-function readPendingImport(skip: boolean): ParsedRecipe | null {
-  if (skip || typeof window === "undefined") return null;
-  const pending = sessionStorage.getItem(PENDING_IMPORT_KEY);
-  if (!pending) return null;
-  sessionStorage.removeItem(PENDING_IMPORT_KEY);
-  try {
-    return JSON.parse(pending) as ParsedRecipe;
-  } catch {
-    return null;
-  }
-}
 
 export function RecipeForm({
   initialRecipe,
@@ -56,14 +40,10 @@ export function RecipeForm({
 }) {
   const { showToast } = useToast();
   const defaultOwner = useDefaultOwner();
-  const [pendingImport] = useState(() => readPendingImport(Boolean(initialRecipe)));
   // New, empty recipes start collapsed to just the import panel — most
-  // recipes here come from pasting an Instagram/recipe link, not typing.
-  // Editing an existing recipe, or already having parsed/imported data,
-  // shows the full form immediately.
-  const [manualExpanded, setManualExpanded] = useState(
-    () => Boolean(initialRecipe) || Boolean(pendingImport),
-  );
+  // recipes here come from pasting a link/photo/text, not typing. Editing an
+  // existing recipe shows the full form immediately.
+  const [manualExpanded, setManualExpanded] = useState(() => Boolean(initialRecipe));
 
   const [madeBy, setMadeBy] = useState<RecipeOwner | null>(initialRecipe?.made_by ?? null);
   const [madeByTouched, setMadeByTouched] = useState(false);
@@ -71,32 +51,20 @@ export function RecipeForm({
   // until the user picks something themselves (including "לא צוין"). Derived
   // at render time (not via an effect) since defaultOwner loads async.
   const effectiveMadeBy = !initialRecipe && !madeByTouched ? (defaultOwner ?? madeBy) : madeBy;
-  const [title, setTitle] = useState(
-    initialRecipe?.title ?? pendingImport?.title ?? "",
-  );
-  const [description, setDescription] = useState(
-    initialRecipe?.description ?? pendingImport?.description ?? "",
-  );
-  const [imageUrl, setImageUrl] = useState(
-    initialRecipe?.image_url ?? pendingImport?.image_url ?? "",
-  );
-  const [sourceUrl, setSourceUrl] = useState(
-    initialRecipe?.source_url ?? pendingImport?.source_url ?? "",
-  );
+  const [title, setTitle] = useState(initialRecipe?.title ?? "");
+  const [description, setDescription] = useState(initialRecipe?.description ?? "");
+  const [imageUrl, setImageUrl] = useState(initialRecipe?.image_url ?? "");
+  const [sourceUrl, setSourceUrl] = useState(initialRecipe?.source_url ?? "");
   const [prepTime, setPrepTime] = useState(
-    (initialRecipe?.prep_time_minutes ?? pendingImport?.prep_time_minutes)?.toString() ?? "",
+    initialRecipe?.prep_time_minutes?.toString() ?? "",
   );
   const [cookTime, setCookTime] = useState(
-    (initialRecipe?.cook_time_minutes ?? pendingImport?.cook_time_minutes)?.toString() ?? "",
+    initialRecipe?.cook_time_minutes?.toString() ?? "",
   );
-  const [servings, setServings] = useState(
-    (initialRecipe?.servings ?? pendingImport?.servings)?.toString() ?? "",
-  );
-  const [ingredients, setIngredients] = useState<string[]>(
-    initialRecipe?.ingredients ?? pendingImport?.ingredients ?? [],
-  );
+  const [servings, setServings] = useState(initialRecipe?.servings?.toString() ?? "");
+  const [ingredients, setIngredients] = useState<string[]>(initialRecipe?.ingredients ?? []);
   const [instructionsText, setInstructionsText] = useState(
-    listToLines(initialRecipe?.instructions ?? pendingImport?.instructions),
+    listToLines(initialRecipe?.instructions),
   );
   const [tags, setTags] = useState<string[]>(initialRecipe?.tags ?? []);
   const [dietaryTags, setDietaryTags] = useState<string[]>(
@@ -359,7 +327,7 @@ export function RecipeForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {!initialRecipe && <ParseUrlPanel onParsed={applyParsedRecipe} />}
+      {!initialRecipe && <RecipeImportPanel onParsed={applyParsedRecipe} />}
 
       {!manualExpanded && (
         <button

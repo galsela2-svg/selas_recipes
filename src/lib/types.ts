@@ -147,23 +147,6 @@ export type RecipePhoto = {
   created_by: string | null;
 };
 
-export type PantryItem = {
-  id: string;
-  name: string;
-  created_by: string | null;
-  created_at: string;
-};
-
-export type CookLog = {
-  id: string;
-  recipe_id: string;
-  cooked_on: string;
-  rating: number | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-};
-
 export type KnownItem = {
   name: string;
   use_count: number;

@@ -4,8 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Download, Image as ImageIcon } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
-import { usePantryItems } from "@/lib/queries/pantry";
-import { fetchAllCookLogs } from "@/lib/queries/cook-logs";
 import { backupToJson, downloadFile, recipesToCsv } from "@/lib/export-data";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,7 +12,6 @@ import { Switch } from "@/components/ui/switch";
 export default function ExportPage() {
   const router = useRouter();
   const { data: recipes, isLoading } = useRecipes();
-  const { data: pantryItems } = usePantryItems();
   const [backingUp, setBackingUp] = useState<"json" | "csv" | null>(null);
   // null = "not yet customized" -> defaults to every loaded recipe.
   const [customSelection, setCustomSelection] = useState<Set<string> | null>(null);
@@ -28,10 +25,9 @@ export default function ExportPage() {
       if (format === "csv") {
         downloadFile(`recipes-${stamp}.csv`, recipesToCsv(recipes), "text/csv");
       } else {
-        const cookLogs = await fetchAllCookLogs();
         downloadFile(
           `recipe-backup-${stamp}.json`,
-          backupToJson({ recipes, cookLogs, pantryItems: pantryItems ?? [] }),
+          backupToJson({ recipes }),
           "application/json",
         );
       }

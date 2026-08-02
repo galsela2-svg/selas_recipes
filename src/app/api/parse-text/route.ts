@@ -3,9 +3,10 @@ import type { ParsedRecipe } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { geminiErrorResponse } from "@/lib/ai-error";
 import { generateStructuredJson } from "@/lib/ai-generate";
-import { findCoverImageForTitle } from "@/lib/find-cover-image";
 
-// See search-recipes/route.ts for why this is needed.
+// Vercel kills a serverless function at its platform default (10s on the
+// Hobby plan) unless told otherwise — the AI extraction call can run past
+// that.
 export const maxDuration = 60;
 
 const TEXT_SCHEMA = {
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
   const recipe: ParsedRecipe = {
     title,
     description: extraction.description,
-    image_url: await findCoverImageForTitle(title, supabase),
+    image_url: null,
     source_url: "",
     prep_time_minutes: extraction.prep_time_minutes,
     cook_time_minutes: extraction.cook_time_minutes,
