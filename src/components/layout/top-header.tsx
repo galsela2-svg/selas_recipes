@@ -9,10 +9,7 @@ const STATIC_TITLES: Record<string, string> = {
   "/dashboard": "מתכונים",
   "/recipes/new": "מתכון חדש",
   "/shopping-list": "רשימת קניות",
-  "/pantry": "המזווה שלי",
   "/settings": "הגדרות",
-  "/achievements": "הישגים",
-  "/roulette": "גלגל המתכונים",
   "/export": "ייצוא לספר מתכונים",
 };
 

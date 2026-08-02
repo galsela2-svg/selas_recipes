@@ -6,37 +6,21 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
-  Dices,
-  Frown,
   Layers,
   ListChecks,
   Loader2,
-  Meh,
   PartyPopper,
-  Smile,
-  SmilePlus,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useAddRecipePhoto } from "@/lib/queries/recipe-photos";
-import { useAddCookLog } from "@/lib/queries/cook-logs";
 import { Spinner } from "@/components/ui/spinner";
 import { Confetti } from "@/components/ui/confetti";
 import { InstructionText } from "@/components/recipes/instruction-text";
 import { useSettings } from "@/components/providers/settings-provider";
 import { useWakeLock } from "@/lib/use-wake-lock";
-import { todayIsoDate } from "@/lib/date-utils";
 import { isParallelStep } from "@/lib/parallel-step";
 import { cn } from "@/lib/utils";
-
-const EMOJI_RATINGS: { icon: LucideIcon; label: string; rating: number }[] = [
-  { icon: Frown, label: "לא כל כך", rating: 2 },
-  { icon: Meh, label: "בסדר", rating: 5 },
-  { icon: Smile, label: "טוב", rating: 7 },
-  { icon: SmilePlus, label: "טעים!", rating: 9 },
-  { icon: PartyPopper, label: "מושלם!", rating: 10 },
-];
 
 export default function CookingModePage({
   params,
@@ -49,10 +33,8 @@ export default function CookingModePage({
   const [step, setStep] = useState(0);
   const [showIngredients, setShowIngredients] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [loggedRating, setLoggedRating] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addPhoto = useAddRecipePhoto();
-  const addLog = useAddCookLog();
 
   useWakeLock(settings.keepScreenAwake);
 
@@ -76,11 +58,6 @@ export default function CookingModePage({
     addPhoto.mutate({ recipeId: id, file });
   }
 
-  function handleQuickRate(rating: number) {
-    setLoggedRating(rating);
-    addLog.mutate({ recipeId: id, cookedOn: todayIsoDate(), rating, notes: null });
-  }
-
   if (completed) {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-center">
@@ -92,25 +69,8 @@ export default function CookingModePage({
 
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold text-foreground">כל הכבוד, סיימתם לבשל!</h1>
-          <p className="text-muted">איך יצא {recipe.title}?</p>
+          <p className="text-muted">בתיאבון עם {recipe.title}!</p>
         </div>
-
-        {loggedRating === null ? (
-          <div className="flex gap-2">
-            {EMOJI_RATINGS.map(({ icon: Icon, label, rating }) => (
-              <button
-                key={rating}
-                onClick={() => handleQuickRate(rating)}
-                title={label}
-                className="flex size-14 items-center justify-center rounded-full border border-border bg-surface text-muted transition-transform cursor-pointer active:scale-90 hover:border-accent/50 hover:text-accent"
-              >
-                <Icon className="size-7" strokeWidth={1.75} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-lg font-medium text-accent">הבישול נרשם ביומן שלכם!</p>
-        )}
 
         <div className="flex w-full max-w-xs flex-col gap-2 pt-4">
           <Link
@@ -118,13 +78,6 @@ export default function CookingModePage({
             className="flex h-12 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-base font-medium text-accent-foreground transition-colors hover:opacity-90"
           >
             חזרה למתכון
-          </Link>
-          <Link
-            href="/roulette"
-            className="flex h-12 items-center justify-center gap-2 rounded-lg border border-border px-6 text-base font-medium text-foreground transition-colors hover:bg-surface-2"
-          >
-            <Dices className="size-4.5" />
-            סבבו את הגלגל למתכון הבא
           </Link>
         </div>
       </div>

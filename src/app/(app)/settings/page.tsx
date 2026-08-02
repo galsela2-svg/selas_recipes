@@ -7,15 +7,12 @@ import {
   BookOpen,
   Check,
   ChevronLeft,
-  Dices,
   KeyRound,
   LogOut,
   Monitor,
   Moon,
-  Package,
   ShoppingCart,
   Sun,
-  Trophy,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -77,7 +74,7 @@ function LinkRow({
 }: {
   href: string;
   label: string;
-  icon: typeof Package;
+  icon: typeof ShoppingCart;
 }) {
   return (
     <Link
@@ -255,23 +252,7 @@ export default function SettingsPage() {
         />
       </SettingsSection>
 
-      <SettingsSection title="רשימת קניות">
-        <SettingsRow
-          label="דלגו על מרכיבים שיש במזווה"
-          description='בלחיצה על "הוספה לרשימת קניות" בעמוד מתכון.'
-          control={
-            <Switch
-              checked={settings.autoHidePantryItems}
-              onChange={(v) => setSetting("autoHidePantryItems", v)}
-            />
-          }
-        />
-      </SettingsSection>
-
       <SettingsSection title="עוד באפליקציה">
-        <LinkRow href="/roulette" label="גלגל המתכונים" icon={Dices} />
-        <LinkRow href="/achievements" label="הישגים" icon={Trophy} />
-        <LinkRow href="/pantry" label="המזווה שלי" icon={Package} />
         <LinkRow href="/shopping-list" label="רשימת קניות ופריטים נפוצים" icon={ShoppingCart} />
         <LinkRow href="/export" label="ייצוא, גיבוי וספר מתכונים" icon={BookOpen} />
       </SettingsSection>

@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
-import { Clapperboard, Link2, NotebookPen } from "lucide-react";
+import { useRef, useState, type KeyboardEvent } from "react";
+import { Camera, Clapperboard, Link2, Loader2, NotebookPen } from "lucide-react";
 import type { ParsedRecipe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type ImportMode = "url" | "text";
+type ImportMode = "url" | "photo" | "text";
 
 const MODE_TABS: { id: ImportMode; label: string; icon: typeof Link2 }[] = [
   { id: "url", label: "קישור", icon: Link2 },
+  { id: "photo", label: "תמונה", icon: Camera },
   { id: "text", label: "טקסט", icon: NotebookPen },
 ];
 
@@ -22,7 +23,22 @@ function isInstagramUrl(raw: string): boolean {
   }
 }
 
-export function ParseUrlPanel({
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the "data:image/jpeg;base64," prefix — only the raw base64
+      // payload is sent to the API.
+      const comma = result.indexOf(",");
+      resolve(comma === -1 ? result : result.slice(comma + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export function RecipeImportPanel({
   onParsed,
 }: {
   onParsed: (recipe: ParsedRecipe) => void;
@@ -30,10 +46,13 @@ export function ParseUrlPanel({
   const [mode, setMode] = useState<ImportMode>("text");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [noticeTone, setNoticeTone] = useState<"info" | "success">("info");
 
   const [url, setUrl] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
+
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [textDraft, setTextDraft] = useState("");
   const [textLoading, setTextLoading] = useState(false);
@@ -42,7 +61,6 @@ export function ParseUrlPanel({
     setMode(next);
     setError(null);
     setNotice(null);
-    setNoticeTone("info");
   }
 
   async function handleUrlSubmit() {
@@ -52,7 +70,6 @@ export function ParseUrlPanel({
     setUrlLoading(true);
     setError(null);
     setNotice(null);
-    setNoticeTone("info");
 
     const instagram = isInstagramUrl(trimmedUrl);
     const endpoint = instagram ? "/api/parse-instagram" : "/api/parse-recipe";
@@ -70,18 +87,7 @@ export function ParseUrlPanel({
         throw new Error(body.error || "לא הצלחנו לפענח את הדף הזה.");
       }
 
-      if (instagram) {
-        const parsed = body.recipe as ParsedRecipe;
-        onParsed(parsed);
-        setNotice(
-          body.fallback
-            ? `לא נמצא מתכון ברור בפוסט האינסטגרם — מילאנו במקום זאת את המתכון הקרוב ביותר שמצאנו באינטרנט (חיפוש: "${body.fallbackQuery}"). בדקו שהוא מתאים.`
-            : "חילצנו את המתכון מהכיתוב של הפוסט — כדאי לעבור עליו ולוודא שהוא מדויק.",
-        );
-        return;
-      }
-
-      const parsed = body as ParsedRecipe;
+      const parsed = (instagram ? body.recipe : body) as ParsedRecipe;
       onParsed(parsed);
 
       if (parsed.ingredients.length === 0 && parsed.instructions.length === 0) {
@@ -89,13 +95,43 @@ export function ParseUrlPanel({
           "מילאנו את הכותרת והתמונה, אבל לא הצלחנו לזהות מרכיבים או הוראות הכנה. השלימו אותם ידנית למטה.",
         );
       } else {
-        setNoticeTone("success");
         setNotice("המתכון פוענח בהצלחה! כדאי לעבור עליו ולוודא שהוא מדויק.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש.");
     } finally {
       setUrlLoading(false);
+    }
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setError(null);
+    setNotice(null);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoLoading(true);
+
+    try {
+      const imageBase64 = await fileToBase64(file);
+      const mimeType = file.type || "image/jpeg";
+      const res = await fetch("/api/parse-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageBase64, mimeType }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "לא הצלחנו לפענח את התמונה.");
+
+      const parsed = body as ParsedRecipe;
+      onParsed(parsed);
+      setNotice("המתכון פוענח בהצלחה מהתמונה! כדאי לעבור עליו ולוודא שהוא מדויק.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש.");
+    } finally {
+      setPhotoLoading(false);
     }
   }
 
@@ -106,7 +142,6 @@ export function ParseUrlPanel({
     setTextLoading(true);
     setError(null);
     setNotice(null);
-    setNoticeTone("info");
 
     try {
       const res = await fetch("/api/parse-text", {
@@ -119,7 +154,6 @@ export function ParseUrlPanel({
 
       const parsed = body as ParsedRecipe;
       onParsed(parsed);
-      setNoticeTone("success");
       setNotice("המתכון סודר בהצלחה! כדאי לעבור עליו ולוודא שהוא מדויק.");
       setTextDraft("");
     } catch (err) {
@@ -139,11 +173,11 @@ export function ParseUrlPanel({
           <p className="font-serif text-lg font-bold leading-tight text-foreground">
             יבוא מתכון
           </p>
-          <p className="text-xs text-muted">מקישור (כולל רילז) או מטקסט חופשי</p>
+          <p className="text-xs text-muted">מקישור, מתמונה, או מטקסט חופשי — ואנחנו נסדר אותו</p>
         </div>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-xl border border-border bg-surface p-1">
+      <div className="mb-3 grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
         {MODE_TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -192,6 +226,38 @@ export function ParseUrlPanel({
         </div>
       )}
 
+      {mode === "photo" && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoLoading}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-6 text-sm font-medium text-muted transition-colors hover:border-accent/50 hover:text-foreground cursor-pointer disabled:opacity-50"
+          >
+            {photoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoPreview} alt="" className="h-24 rounded-md object-cover" />
+            ) : photoLoading ? (
+              <Loader2 className="size-6 animate-spin" />
+            ) : (
+              <Camera className="size-6" />
+            )}
+            {photoLoading ? "קוראים את המתכון מהתמונה..." : "צילום או בחירת תמונה"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoChange}
+            className="hidden"
+          />
+          <p className="text-xs text-muted">
+            עמוד מספר בישול, כרטיסיית מתכון כתובה ביד, או צילום מסך — ואנחנו נסדר לכם כותרת, מרכיבים ושלבי הכנה.
+          </p>
+        </div>
+      )}
+
       {mode === "text" && (
         <div className="flex flex-col gap-2">
           <Textarea
@@ -215,11 +281,7 @@ export function ParseUrlPanel({
       )}
 
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
-      {notice && (
-        <p className={cn("mt-3 text-xs", noticeTone === "success" ? "text-success" : "text-accent")}>
-          {notice}
-        </p>
-      )}
+      {notice && <p className="mt-3 text-xs text-success">{notice}</p>}
     </div>
   );
 }

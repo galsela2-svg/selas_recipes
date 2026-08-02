@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ChefHat, Package, Plus, ShoppingCart, Trash2, X } from "lucide-react";
+import { ChefHat, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import {
   useAddShoppingItems,
   useClearCheckedItems,
@@ -119,13 +119,6 @@ export default function ShoppingListPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-end">
         <div className="flex gap-2">
-          <Link
-            href="/pantry"
-            title="המזווה שלי"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-          >
-            <Package className="size-4" />
-          </Link>
           {checkedItems.length > 0 && (
             <Button
               variant="secondary"
