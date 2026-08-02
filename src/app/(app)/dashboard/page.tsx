@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Heart, Pencil, Search, Trash2, UtensilsCrossed } from "lucide-react";
+import { ChevronDown, Heart, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
-import type { RecipeOwner } from "@/lib/types";
+import { DIETARY_TAG_GROUPS, type RecipeOwner } from "@/lib/types";
+import type { CategoryTile } from "@/lib/quick-filter-tiles";
+import { useSettings } from "@/components/providers/settings-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
+import { CategoryTiles } from "@/components/dashboard/category-tiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -17,9 +20,12 @@ const OWNER_FILTERS: RecipeOwner[] = ["ניבה", "גל"];
 
 export default function DashboardPage() {
   const { data: recipes, isLoading } = useRecipes();
+  const [settings, setSetting] = useSettings();
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState<RecipeOwner | null>(null);
+  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [showCategoryTiles, setShowCategoryTiles] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -52,9 +58,26 @@ export default function DashboardPage() {
     }
   }
 
+  function isTileActive(tile: CategoryTile): boolean {
+    return selectedDietary.includes(tile.tag);
+  }
+
+  // Tiles act like cookbook chapters: tapping "ערב" after "בוקר" should
+  // switch chapters, not require recipes tagged with both — so within a
+  // tile's own group (meal type, kosher category, etc.) picking a new tag
+  // replaces whatever was selected there instead of adding to it.
+  function handleTileSelect(tile: CategoryTile) {
+    setSelectedDietary((prev) => {
+      const groupTags = DIETARY_TAG_GROUPS.find((g) => g.label === tile.group)?.options ?? [];
+      const withoutGroup = prev.filter((t) => !groupTags.includes(t));
+      return prev.includes(tile.tag) ? withoutGroup : [...withoutGroup, tile.tag];
+    });
+  }
+
   // One smart search box covers everything: a dish name, an ingredient, or
   // a category word (dietary tag, meal type, cuisine, etc.) — no separate
-  // filter UI to learn.
+  // filter UI to learn. Category tokens below are a tap-friendly shortcut
+  // for the same dietary_tags a search word would already match.
   const filtered = useMemo(() => {
     if (!recipes) return [];
     const query = search.trim().toLowerCase();
@@ -69,11 +92,13 @@ export default function DashboardPage() {
         recipe.dietary_tags.some((t) => t.toLowerCase().includes(query));
       const matchesFavorite = !favoritesOnly || recipe.is_favorite;
       const matchesOwner = !ownerFilter || recipe.made_by === ownerFilter;
-      return matchesSearch && matchesFavorite && matchesOwner;
+      const matchesDietary = selectedDietary.every((d) => recipe.dietary_tags.includes(d));
+      return matchesSearch && matchesFavorite && matchesOwner && matchesDietary;
     });
-  }, [recipes, search, favoritesOnly, ownerFilter]);
+  }, [recipes, search, favoritesOnly, ownerFilter, selectedDietary]);
 
-  const isBrowsingUnfiltered = !search.trim() && !favoritesOnly && !ownerFilter;
+  const isBrowsingUnfiltered =
+    !search.trim() && !favoritesOnly && !ownerFilter && selectedDietary.length === 0;
 
   return (
     <div className="space-y-6">
@@ -127,7 +152,53 @@ export default function DashboardPage() {
             >
               <Heart className={cn("size-4", favoritesOnly && "fill-danger")} />
             </button>
+            <button
+              onClick={() => setShowCategoryTiles((prev) => !prev)}
+              title="קטגוריות"
+              className={cn(
+                "relative flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                showCategoryTiles || selectedDietary.length > 0
+                  ? "border-accent bg-accent/15 text-accent"
+                  : "border-border text-muted hover:bg-surface-2",
+              )}
+            >
+              <Tag className="size-4" />
+              {selectedDietary.length > 0 && (
+                <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
+                  {selectedDietary.length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {showCategoryTiles && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted">קטגוריות</p>
+                <button
+                  onClick={() => setShowCategoryTiles(false)}
+                  className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                >
+                  <ChevronDown className="size-3.5" />
+                  מזעור
+                </button>
+              </div>
+              <CategoryTiles
+                tileKeys={settings.quickFilterTileKeys}
+                onTileKeysChange={(keys) => setSetting("quickFilterTileKeys", keys)}
+                isActive={isTileActive}
+                onSelect={handleTileSelect}
+              />
+              {selectedDietary.length > 0 && (
+                <button
+                  onClick={() => setSelectedDietary([])}
+                  className="text-xs font-medium text-muted hover:text-foreground cursor-pointer"
+                >
+                  ניקוי קטגוריות ({selectedDietary.length})
+                </button>
+              )}
+            </div>
+          )}
 
           {!isLoading && filtered.length > 0 && (
             <div className="flex items-center justify-between">
@@ -188,7 +259,7 @@ export default function DashboardPage() {
                 recipes?.length
                   ? favoritesOnly
                     ? "לחצו על הלב במתכון כדי להוסיף אותו למועדפים."
-                    : "נסו לשנות או לנקות את החיפוש."
+                    : "נסו לשנות או לנקות את החיפוש/הקטגוריות."
                   : "הוסיפו את המתכון הראשון שלכם כדי להתחיל."
               }
             />
