@@ -18,6 +18,8 @@ export function IngredientListInput({
   const recordKnownItems = useRecordKnownItems();
   const [draft, setDraft] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState("");
 
   const pool = useMemo(() => {
     const set = new Set<string>(knownItems ?? []);
@@ -53,26 +55,70 @@ export function IngredientListInput({
     }
   }
 
+  function startEditing(i: number) {
+    setEditingIndex(i);
+    setEditDraft(value[i]);
+  }
+
+  function commitEdit() {
+    const i = editingIndex;
+    setEditingIndex(null);
+    if (i === null) return;
+    const trimmed = editDraft.trim();
+    if (!trimmed || trimmed === value[i]) return;
+    onChange(value.map((item, idx) => (idx === i ? trimmed : item)));
+  }
+
   return (
     <div className="space-y-2">
       {value.length > 0 && (
         <ul className="space-y-1.5">
-          {value.map((ingredient, i) => (
-            <li
-              key={i}
-              className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-            >
-              <span className="size-1.5 shrink-0 rounded-full bg-accent" />
-              <span className="flex-1">{ingredient}</span>
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((_, idx) => idx !== i))}
-                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger cursor-pointer"
+          {value.map((ingredient, i) =>
+            editingIndex === i ? (
+              <li
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-accent/50 bg-surface px-3 py-2"
               >
-                <X className="size-3.5" />
-              </button>
-            </li>
-          ))}
+                <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+                <input
+                  autoFocus
+                  value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitEdit();
+                    } else if (e.key === "Escape") {
+                      setEditingIndex(null);
+                    }
+                  }}
+                  onBlur={commitEdit}
+                  className="flex-1 bg-transparent text-sm text-foreground outline-none"
+                />
+              </li>
+            ) : (
+              <li
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              >
+                <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+                <button
+                  type="button"
+                  onClick={() => startEditing(i)}
+                  className="flex-1 cursor-text text-start"
+                >
+                  {ingredient}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange(value.filter((_, idx) => idx !== i))}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger cursor-pointer"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </li>
+            ),
+          )}
         </ul>
       )}
 
