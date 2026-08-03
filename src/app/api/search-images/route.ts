@@ -53,7 +53,12 @@ export async function GET(request: Request) {
   let results;
   try {
     results = await searchWeb(biasedQuery, 10);
-  } catch {
+  } catch (err) {
+    // Logged server-side (visible in Vercel's function logs) since the
+    // client-facing message can't safely include raw upstream details —
+    // this is the one thing worth knowing if DuckDuckGo starts blocking
+    // requests from this deployment's IPs.
+    console.error("search-images: searchWeb failed", err);
     return NextResponse.json({ error: "החיפוש נכשל. נסו שוב בעוד רגע." }, { status: 502 });
   }
 
