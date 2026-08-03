@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera,
   ChefHat,
@@ -17,11 +18,13 @@ import {
   Users,
 } from "lucide-react";
 import {
+  recipeKeys,
   useDeleteRecipe,
   useRecipe,
   useToggleFavorite,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
+import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { cn, formatMinutes } from "@/lib/utils";
 import { scaleIngredientText } from "@/lib/quantity-scaling";
@@ -48,6 +51,7 @@ export default function RecipeDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: recipe, isLoading } = useRecipe(id);
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
@@ -91,6 +95,41 @@ export default function RecipeDetailPage({
       made_by: recipe.made_by,
     };
   }
+
+  // Best-effort, silent: a recipe with no cover image gets one searched for
+  // and set automatically the first time its page is opened — covers both
+  // freshly-created recipes and older ones that never had an image. Runs
+  // once per recipe per page visit; a failed search just leaves it blank,
+  // same as today, with no error shown (this shouldn't ever feel broken).
+  const coverSearchAttempted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!recipe || recipe.image_url || coverSearchAttempted.current === recipe.id) return;
+    coverSearchAttempted.current = recipe.id;
+
+    let cancelled = false;
+    fetch("/api/find-cover-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: recipe.title }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.image_url) return;
+        // Re-check against the live cache, not the closed-over `recipe` —
+        // the user may have set an image by hand while this search was
+        // still in flight, and that manual choice should win.
+        const current = queryClient.getQueryData<Recipe>(recipeKeys.detail(recipe.id));
+        if (current && current.image_url) return;
+        const input = buildInputWithImage(body.image_url as string);
+        if (input) updateRecipe.mutate({ id: recipe.id, input });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe?.id, recipe?.image_url]);
 
   if (isLoading || !recipe) return <Spinner />;
 
