@@ -108,7 +108,14 @@ export async function GET(request: Request) {
   let openverseError: unknown = null;
   try {
     const images = await searchOpenverse(query, 10);
-    if (images.length > 0) return NextResponse.json({ images });
+    // Openverse answered successfully — even zero matches (common for a
+    // specific/personal dish name a stock-photo library was never going to
+    // have) is a legitimate, non-error outcome. Returning it as-is (instead
+    // of falling through to DDG, which this deployment can't reach anyway)
+    // lets the client's normal "no images found, try another term" empty
+    // state handle it, rather than reporting a scary failure for something
+    // that isn't actually broken.
+    return NextResponse.json({ images });
   } catch (err) {
     openverseError = err;
     console.error("search-images: Openverse failed, falling back to DuckDuckGo", err);
