@@ -416,7 +416,7 @@ export function RecipeForm({
         {polishDescriptionError && <p className="text-xs text-danger">{polishDescriptionError}</p>}
       </div>
 
-      <ImageField value={imageUrl} onChange={setImageUrl} />
+      <ImageField value={imageUrl} onChange={setImageUrl} defaultSearchQuery={title} />
 
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">

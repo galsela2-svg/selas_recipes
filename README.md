@@ -71,9 +71,10 @@ targets, and a camera-first photo flow — rather than a desktop layout.
 ## Features
 
 This app is deliberately simple: it manages *your own* recipe collection —
-there is no built-in web search or recipe discovery. Getting a recipe in is
+there is no built-in *recipe* web search or discovery. Getting a recipe in is
 always one of three explicit actions: paste a link, snap a photo, or paste
-text.
+text (web search is used in exactly one place — finding a cover *image* for
+a recipe you already have, see below).
 
 - **Auth** — email/password sign-in for the two accounts; every other page
   route is protected by `src/proxy.ts` (Next.js 16's renamed Middleware).
@@ -90,6 +91,13 @@ text.
   A site that blocks automated access, or a photo/caption with no readable
   recipe, surfaces a clear message instead of failing silently — never a
   silent fallback to searching the web.
+- **Cover image: upload or web search** — on the recipe form and the detail
+  page's image editor, pick a photo from the gallery, or search the web for
+  one (query defaults to the recipe's title, freely editable) and tap a
+  result to use it. A picked result is downloaded and re-hosted in this
+  project's own Storage bucket rather than hotlinked, since many sites block
+  cross-origin image requests. This is the one deliberate exception to "no
+  web search" in the app — it searches for a *picture*, not a recipe.
 - **One smart search box** (dashboard) — matches recipe title, ingredients,
   and tags/categories at once, so searching "עוגה" finds cakes by title *or*
   category, and searching an ingredient finds every recipe that uses it.
@@ -159,6 +167,8 @@ src/
     api/suggest-tags/          Server route: AI tag suggestions for a recipe
     api/polish-recipe/         Server route: AI description/instructions polish
     api/complete-recipe/       Server route: fills in missing fields after import
+    api/search-images/         Server route: web image search (cover image picker)
+    api/import-image/          Server route: re-hosts a picked web image to Storage
   components/
     layout/                   Top header, bottom tab bar, app shell
     dashboard/                Categorized recipe grid (meal-type chapters)
@@ -171,6 +181,8 @@ src/
     queries/                  React Query hooks (recipes, shopping list, tags,
                                known items, photos)
     recipe-scraper.ts         JSON-LD / microdata Recipe extraction
+    web-search.ts             No-key web search (DuckDuckGo HTML results),
+                               used only by the cover-image picker
     quantity-scaling.ts       Fraction-aware ingredient quantity parsing/scaling
     unit-conversion.ts        Imperial <-> Metric conversion + density dictionary
     timer-parser.ts           Detects durations in instruction text
