@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { searchWeb, WebSearchFailedError } from "@/lib/web-search";
 import { extractOgTag, fetchHtml } from "@/lib/recipe-scraper";
+import { translateFoodQueryToEnglish } from "@/lib/translate-food-query";
 import { createClient } from "@/lib/supabase/server";
 
 // Vercel kills a serverless function at its platform default (10s on the
@@ -105,9 +106,15 @@ export async function GET(request: Request) {
   const isHebrew = /[֐-׿]/.test(query);
   const biasedQuery = `${query} ${isHebrew ? "תמונה מתכון" : "recipe photo"}`;
 
+  // Openverse's index is tagged almost entirely in English — a Hebrew query
+  // doesn't error there, it just returns weak/unrelated matches, which is
+  // worse than a clean "no results" (silently wrong beats silently empty).
+  // Falls back to the original query on any translation failure.
+  const openverseQuery = isHebrew ? await translateFoodQueryToEnglish(query) : query;
+
   let openverseError: unknown = null;
   try {
-    const images = await searchOpenverse(query, 10);
+    const images = await searchOpenverse(openverseQuery, 10);
     // Openverse answered successfully — even zero matches (common for a
     // specific/personal dish name a stock-photo library was never going to
     // have) is a legitimate, non-error outcome. Returning it as-is (instead
