@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CheckCircle2, Circle, Clock, Heart, ImageOff } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { cn, formatMinutes } from "@/lib/utils";
-import { useToggleFavorite } from "@/lib/queries/recipes";
 
 // One square format for every recipe card in the app, image or not — a
 // dark gradient anchors the title (and optional badge) to the bottom edge
@@ -25,14 +24,7 @@ export function RecipeCard({
   onToggleSelect?: () => void;
   highlighted?: boolean;
 }) {
-  const toggleFavorite = useToggleFavorite();
   const totalTime = (recipe.prep_time_minutes ?? 0) + (recipe.cook_time_minutes ?? 0);
-
-  function handleToggleFavorite(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleFavorite.mutate({ id: recipe.id, isFavorite: !recipe.is_favorite });
-  }
 
   function handleClick(e: React.MouseEvent) {
     if (!selectable) return;
@@ -78,14 +70,14 @@ export function RecipeCard({
           )}
         </span>
       ) : (
-        <button
-          onClick={handleToggleFavorite}
-          className="absolute end-1.5 top-1.5 z-10 flex size-7 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm cursor-pointer transition-transform active:scale-90"
-        >
-          <Heart
-            className={recipe.is_favorite ? "size-3.5 fill-danger text-danger" : "size-3.5 text-white"}
-          />
-        </button>
+        // Favoriting itself only happens from inside the recipe (its own
+        // page has the toggle) — this is a passive indicator, not a
+        // button, and only takes up space when the recipe actually is one.
+        recipe.is_favorite && (
+          <span className="absolute end-1.5 top-1.5 z-10 flex size-7 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm">
+            <Heart className="size-3.5 fill-danger text-danger" />
+          </span>
+        )
       )}
 
       <div className="relative mt-auto flex flex-col gap-0.5 p-2">
