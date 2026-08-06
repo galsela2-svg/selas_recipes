@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateStructuredJson } from "@/lib/ai-generate";
 import { searchWeb } from "@/lib/web-search";
+import { searchOpenverseImages } from "@/lib/image-search";
+import { translateFoodQueryToEnglish } from "@/lib/translate-food-query";
 import { extractOgTag, fetchHtml, fetchImage } from "@/lib/recipe-scraper";
 
 const QUERY_SCHEMA = {
@@ -40,9 +42,39 @@ const EXT_BY_CONTENT_TYPE: Record<string, string> = {
   "image/gif": "gif",
 };
 
+async function rehostImage(
+  imageUrl: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+): Promise<string | null> {
+  try {
+    const image = await fetchImage(imageUrl);
+    const ext = EXT_BY_CONTENT_TYPE[image.contentType] ?? "jpg";
+    const path = `covers/${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, image.data, { upsert: false, contentType: image.contentType });
+    if (error) return null;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    return publicUrl;
+  } catch {
+    return null;
+  }
+}
+
 /** Best-effort: finds and re-hosts a cover image for a recipe that doesn't
  * have one, based on its title. Returns null (never throws) on any
- * failure — a missing image search shouldn't break the import itself. */
+ * failure — a missing image search shouldn't break the import itself.
+ *
+ * Tries Openverse first (a real JSON API, tagged mostly in English — the
+ * query is cleaned of personal/marketing fluff and translated if needed)
+ * since it isn't subject to the anti-scraping treatment DuckDuckGo's HTML
+ * results page gives a datacenter IP; falls back to scraping a recipe
+ * site's own photo via DuckDuckGo search only if that comes up empty. */
 export async function findCoverImageForTitle(
   title: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,10 +83,22 @@ export async function findCoverImageForTitle(
   if (!title.trim()) return null;
 
   const query = await cleanSearchQuery(title);
+  const isHebrew = /[֐-׿]/.test(query);
+
+  try {
+    const openverseQuery = isHebrew ? await translateFoodQueryToEnglish(query) : query;
+    const [best] = await searchOpenverseImages(openverseQuery, 1);
+    if (best) {
+      const hosted = await rehostImage(best.imageUrl, supabase);
+      if (hosted) return hosted;
+    }
+  } catch {
+    // Falls through to the DuckDuckGo-backed search below.
+  }
 
   let results;
   try {
-    results = await searchWeb(`${query} תמונה מתכון`, 12);
+    results = await searchWeb(`${query} ${isHebrew ? "תמונה מתכון" : "recipe photo"}`, 12);
   } catch {
     return null;
   }
@@ -65,19 +109,8 @@ export async function findCoverImageForTitle(
       const ogImage = extractOgTag(html, "og:image");
       if (!ogImage) continue;
 
-      const image = await fetchImage(ogImage);
-      const ext = EXT_BY_CONTENT_TYPE[image.contentType] ?? "jpg";
-      const path = `covers/${crypto.randomUUID()}.${ext}`;
-
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, image.data, { upsert: false, contentType: image.contentType });
-      if (error) continue;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      return publicUrl;
+      const hosted = await rehostImage(ogImage, supabase);
+      if (hosted) return hosted;
     } catch {
       continue;
     }

@@ -7,6 +7,7 @@ import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
 import { DIETARY_TAG_GROUPS, type RecipeOwner } from "@/lib/types";
 import type { CategoryTile } from "@/lib/quick-filter-tiles";
 import { useSettings } from "@/components/providers/settings-provider";
+import { useBackfillMissingCoverImages } from "@/lib/use-backfill-cover-images";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
 import { CategoryTiles } from "@/components/dashboard/category-tiles";
@@ -40,6 +41,8 @@ export default function DashboardPage() {
     searchParams.get("highlight"),
   );
   const deleteRecipe = useDeleteRecipe();
+
+  useBackfillMissingCoverImages(recipes);
 
   useEffect(() => {
     if (!highlightedId || isLoading) return;
