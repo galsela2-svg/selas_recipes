@@ -148,6 +148,7 @@ function MemberRow({
   onRemove: () => void;
 }) {
   const setColor = useSetMemberColor();
+  const { showToast } = useToast();
   const preset = getMemberColorPreset(member.color);
 
   return (
@@ -186,10 +187,16 @@ function MemberRow({
             type="button"
             title={p.name}
             onClick={() =>
-              setColor.mutate({
-                userId: member.user_id,
-                color: member.color === p.id ? null : p.id,
-              })
+              setColor.mutate(
+                {
+                  userId: member.user_id,
+                  color: member.color === p.id ? null : p.id,
+                },
+                {
+                  onError: (err) =>
+                    showToast(describeError(err, "לא הצלחנו לעדכן את הצבע. נסו שוב.")),
+                },
+              )
             }
             className={cn(
               "size-5 shrink-0 rounded-full transition-transform cursor-pointer hover:scale-110",
