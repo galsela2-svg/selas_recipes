@@ -38,9 +38,12 @@ export function CategorizedRecipeGrid({
   const selectable = Boolean(selectedIds);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {sections.map((section) => (
-        <div key={section.tag} className="space-y-3">
+        <div
+          key={section.tag}
+          className="space-y-3 rounded-2xl border border-border bg-surface-2 p-3"
+        >
           <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
             <section.icon className="size-5 text-accent" />
             {section.label}
@@ -61,7 +64,7 @@ export function CategorizedRecipeGrid({
       ))}
 
       {rest.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-2xl border border-border bg-surface-2 p-3">
           <p className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground">
             <BookOpen className="size-5 text-accent" />
             מתכונים נוספים
