@@ -12,6 +12,7 @@ import {
   Heart,
   ImageOff,
   Pencil,
+  Plus,
   ShoppingCart,
   Timer,
   Trash2,
@@ -24,7 +25,7 @@ import {
   useToggleFavorite,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
-import { useFamilyMembers } from "@/lib/queries/family";
+import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
 import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -39,7 +40,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Modal } from "@/components/ui/modal";
-import { RecipePhotoGallery } from "@/components/recipes/recipe-photo-gallery";
 import { ServingsAdjuster } from "@/components/recipes/servings-adjuster";
 import { InstructionText } from "@/components/recipes/instruction-text";
 import { ImageField } from "@/components/recipes/image-field";
@@ -57,7 +57,8 @@ export default function RecipeDetailPage({
   const queryClient = useQueryClient();
   const { data: recipe, isLoading } = useRecipe(id);
   const { data: familyMembers } = useFamilyMembers();
-  const madeByName = familyMembers?.find((m) => m.user_id === recipe?.made_by_user_id)?.display_name;
+  const madeByMember = familyMembers?.find((m) => m.user_id === recipe?.made_by_user_id);
+  const madeByColor = getMemberColorPreset(madeByMember?.color)?.color;
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
@@ -204,9 +205,12 @@ export default function RecipeDetailPage({
           </span>
         </div>
 
-        {madeByName && (
-          <span className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
-            {madeByName}
+        {madeByMember && (
+          <span
+            className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm"
+            style={madeByColor ? { color: madeByColor } : undefined}
+          >
+            {madeByMember.display_name}
           </span>
         )}
 
@@ -322,25 +326,26 @@ export default function RecipeDetailPage({
           </div>
         )}
 
-        <Button
-          onClick={handleAddToShoppingList}
-          loading={addShoppingItems.isPending}
-          disabled={scaledIngredients.length === 0}
-        >
-          <ShoppingCart className="size-4" />
-          {added ? "נוסף לרשימת הקניות" : "הוספה לרשימת קניות"}
-        </Button>
-      </div>
-
-      <div>
-        <h2 className="mb-3 font-semibold text-foreground">תמונות מההכנה</h2>
-        <RecipePhotoGallery recipeId={recipe.id} />
       </div>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         <div className="md:col-span-1 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-foreground">מרכיבים</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-foreground">מרכיבים</h2>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleAddToShoppingList}
+                loading={addShoppingItems.isPending}
+                disabled={scaledIngredients.length === 0}
+                title={added ? "נוסף לרשימת הקניות" : "הוספה לרשימת קניות"}
+                aria-label={added ? "נוסף לרשימת הקניות" : "הוספה לרשימת קניות"}
+              >
+                <Plus className="size-3.5" />
+                <ShoppingCart className="size-3.5" />
+              </Button>
+            </div>
             <div className="flex overflow-hidden rounded-lg border border-border text-xs">
               <button
                 onClick={() => setUnitSystem("imperial")}

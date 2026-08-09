@@ -3,6 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Family, FamilyInvite, FamilyMember, InvitePreview } from "@/lib/types";
+import { ACCENT_PRESETS } from "@/lib/settings-store";
+
+/** Resolves a member's stored color id (an ACCENT_PRESETS id, or null if
+ * they haven't picked one) to the actual preset — the single place that
+ * knows how to turn `member.color` into real CSS colors. */
+export function getMemberColorPreset(colorId: string | null | undefined) {
+  return ACCENT_PRESETS.find((p) => p.id === colorId) ?? null;
+}
 
 export const familyKeys = {
   mine: ["family", "mine"] as const,
@@ -132,6 +140,38 @@ export function useDeleteInvite() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: familyKeys.invites });
+    },
+  });
+}
+
+/** Any family member can set any other member's color (see set_member_color
+ * in schema.sql) — an owner-only restriction wasn't the intent here, since
+ * this whole app treats a household as a fully co-equal, trusted group. */
+export function useSetMemberColor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, color }: { userId: string; color: string | null }) => {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("set_member_color", {
+        target_user_id: userId,
+        new_color: color,
+      });
+      if (error) throw error;
+    },
+    onMutate: async ({ userId, color }) => {
+      await queryClient.cancelQueries({ queryKey: familyKeys.members });
+      const previous = queryClient.getQueryData<FamilyMember[]>(familyKeys.members);
+      queryClient.setQueryData<FamilyMember[]>(familyKeys.members, (old) =>
+        old?.map((m) => (m.user_id === userId ? { ...m, color } : m)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context) queryClient.setQueryData(familyKeys.members, context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: familyKeys.members });
     },
   });
 }

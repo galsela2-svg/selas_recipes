@@ -1,20 +1,17 @@
 "use client";
 
-import { use, useRef, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
-  Camera,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   Layers,
   ListChecks,
-  Loader2,
   PartyPopper,
   X,
 } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
-import { useAddRecipePhoto } from "@/lib/queries/recipe-photos";
 import { Spinner } from "@/components/ui/spinner";
 import { Confetti } from "@/components/ui/confetti";
 import { InstructionText } from "@/components/recipes/instruction-text";
@@ -34,14 +31,12 @@ export default function CookingModePage({
   const [step, setStep] = useState(0);
   const [showIngredients, setShowIngredients] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const addPhoto = useAddRecipePhoto();
 
   useWakeLock(settings.keepScreenAwake);
 
   if (isLoading || !recipe) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <Spinner />
       </div>
     );
@@ -52,16 +47,9 @@ export default function CookingModePage({
   const nextStep = step < totalSteps - 1 ? recipe.instructions[step + 1] : null;
   const nextIsParallel = nextStep ? isParallelStep(nextStep) : false;
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    addPhoto.mutate({ recipeId: id, file });
-  }
-
   if (completed) {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-center">
+      <div className="relative flex h-dvh flex-col items-center justify-center gap-8 overflow-y-auto bg-background px-6 text-center">
         <Confetti />
 
         <div className="flex size-20 items-center justify-center rounded-full bg-accent/15 text-accent">
@@ -86,8 +74,8 @@ export default function CookingModePage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-8">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
+      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-8">
         <Link
           href={`/recipes/${id}`}
           className="flex items-center gap-2 text-sm text-muted hover:text-foreground"
@@ -111,25 +99,6 @@ export default function CookingModePage({
             </a>
           )}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={addPhoto.isPending}
-            className="flex items-center gap-2 text-sm text-muted hover:text-foreground cursor-pointer disabled:opacity-50"
-          >
-            {addPhoto.isPending ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Camera className="size-5" />
-            )}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhotoChange}
-            className="hidden"
-          />
-          <button
             onClick={() => setShowIngredients((v) => !v)}
             className="flex items-center gap-2 text-sm text-muted hover:text-foreground cursor-pointer"
           >
@@ -139,15 +108,15 @@ export default function CookingModePage({
         </div>
       </header>
 
-      <div className="flex flex-1">
-        <main className="flex flex-1 flex-col items-center justify-center gap-10 px-6 py-10 sm:px-16">
+      <div className="flex min-h-0 flex-1">
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-4 sm:gap-10 sm:px-16 sm:py-10">
           {totalSteps > 0 ? (
             <>
               <p className="text-sm font-medium uppercase tracking-widest text-accent">
                 שלב {step + 1} מתוך {totalSteps}
               </p>
 
-              <p className="max-w-3xl text-center text-3xl font-medium leading-relaxed text-foreground sm:text-4xl">
+              <p className="max-w-3xl text-center text-2xl font-medium leading-snug text-foreground sm:text-4xl sm:leading-relaxed">
                 <InstructionText text={currentStep} ingredients={recipe.ingredients} />
               </p>
 
@@ -230,7 +199,7 @@ export default function CookingModePage({
         </main>
 
         {showIngredients && (
-          <aside className="hidden w-80 shrink-0 border-s border-border bg-surface p-6 sm:block">
+          <aside className="hidden w-80 shrink-0 overflow-y-auto border-s border-border bg-surface p-6 sm:block">
             <h2 className="mb-4 font-semibold text-foreground">מרכיבים</h2>
             <ul className="space-y-3">
               {recipe.ingredients.map((ingredient, i) => (
@@ -244,18 +213,28 @@ export default function CookingModePage({
         )}
       </div>
 
+      {/* On mobile this is a bottom-sheet overlay (fixed, capped height, own
+          scroll) instead of stacking inline below main — inline would push
+          the whole page taller than the viewport and force page-level
+          scrolling, which cooking mode is meant to avoid entirely. */}
       {showIngredients && (
-        <div className="border-t border-border bg-surface p-6 sm:hidden">
-          <h2 className="mb-4 font-semibold text-foreground">מרכיבים</h2>
-          <ul className="space-y-3">
-            {recipe.ingredients.map((ingredient, i) => (
-              <li key={i} className="flex gap-2 text-base text-foreground">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" />
-                {ingredient}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <>
+          <div
+            onClick={() => setShowIngredients(false)}
+            className="fixed inset-0 z-20 bg-black/40 sm:hidden"
+          />
+          <div className="fixed inset-x-0 bottom-0 z-30 max-h-[70dvh] overflow-y-auto rounded-t-2xl border-t border-border bg-surface p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:hidden">
+            <h2 className="mb-4 font-semibold text-foreground">מרכיבים</h2>
+            <ul className="space-y-3">
+              {recipe.ingredients.map((ingredient, i) => (
+                <li key={i} className="flex gap-2 text-base text-foreground">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" />
+                  {ingredient}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
       )}
     </div>
   );
