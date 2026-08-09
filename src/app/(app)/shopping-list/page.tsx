@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ChefHat, Plus, ShoppingCart, Trash2, X } from "lucide-react";
+import { ChefHat, Eye, EyeOff, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import {
   useAddShoppingItems,
   useClearCheckedItems,
@@ -24,6 +24,8 @@ import { splitIngredientQuantity } from "@/lib/ingredient-display";
 import { cn } from "@/lib/utils";
 import type { ShoppingListItem } from "@/lib/types";
 
+const HIDE_CHECKED_STORAGE_KEY = "shopping-list-hide-checked";
+
 export default function ShoppingListPage() {
   const { data: items, isLoading } = useShoppingList();
   const addItems = useAddShoppingItems();
@@ -36,6 +38,14 @@ export default function ShoppingListPage() {
   const [draft, setDraft] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showManager, setShowManager] = useState(false);
+  const [hideChecked, setHideChecked] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(HIDE_CHECKED_STORAGE_KEY) === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(HIDE_CHECKED_STORAGE_KEY, String(hideChecked));
+  }, [hideChecked]);
 
   const pool = useMemo(() => {
     const set = new Set<string>(knownItems ?? []);
@@ -120,15 +130,31 @@ export default function ShoppingListPage() {
       <div className="flex items-center justify-end">
         <div className="flex gap-2">
           {checkedItems.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => clearChecked.mutate()}
-              loading={clearChecked.isPending}
-            >
-              <Trash2 className="size-3.5" />
-              ניקוי מסומנים
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setHideChecked((v) => !v)}
+              >
+                {hideChecked ? (
+                  <Eye className="size-3.5" />
+                ) : (
+                  <EyeOff className="size-3.5" />
+                )}
+                {hideChecked
+                  ? `הצגת מסומנים (${checkedItems.length})`
+                  : "הסתרת מסומנים"}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => clearChecked.mutate()}
+                loading={clearChecked.isPending}
+              >
+                <Trash2 className="size-3.5" />
+                ניקוי מסומנים
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -219,7 +245,7 @@ export default function ShoppingListPage() {
             </div>
           ))}
 
-          {checkedItems.length > 0 && (
+          {checkedItems.length > 0 && !hideChecked && (
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">
                 מסומנים
