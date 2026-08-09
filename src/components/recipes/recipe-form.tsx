@@ -5,14 +5,13 @@ import { Loader2, Pencil, Plus, Sparkles, WandSparkles } from "lucide-react";
 import {
   DIETARY_TAG_GROUPS,
   DIETARY_TAG_OPTIONS,
-  RECIPE_OWNERS,
   type ParsedRecipe,
   type Recipe,
   type RecipeInput,
-  type RecipeOwner,
 } from "@/lib/types";
 import { cn, linesToList, listToLines } from "@/lib/utils";
-import { useDefaultOwner } from "@/lib/default-owner";
+import { useCurrentUserId } from "@/lib/queries/auth";
+import { useFamilyMembers } from "@/lib/queries/family";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -39,18 +38,19 @@ export function RecipeForm({
   submitting?: boolean;
 }) {
   const { showToast } = useToast();
-  const defaultOwner = useDefaultOwner();
+  const { data: currentUserId } = useCurrentUserId();
+  const { data: familyMembers } = useFamilyMembers();
   // New, empty recipes start collapsed to just the import panel — most
   // recipes here come from pasting a link/photo/text, not typing. Editing an
   // existing recipe shows the full form immediately.
   const [manualExpanded, setManualExpanded] = useState(() => Boolean(initialRecipe));
 
-  const [madeBy, setMadeBy] = useState<RecipeOwner | null>(initialRecipe?.made_by ?? null);
+  const [madeBy, setMadeBy] = useState<string | null>(initialRecipe?.made_by_user_id ?? null);
   const [madeByTouched, setMadeByTouched] = useState(false);
   // Defaults a brand-new recipe's owner to whoever is signed in — only
   // until the user picks something themselves (including "לא צוין"). Derived
-  // at render time (not via an effect) since defaultOwner loads async.
-  const effectiveMadeBy = !initialRecipe && !madeByTouched ? (defaultOwner ?? madeBy) : madeBy;
+  // at render time (not via an effect) since currentUserId loads async.
+  const effectiveMadeBy = !initialRecipe && !madeByTouched ? (currentUserId ?? madeBy) : madeBy;
   const [title, setTitle] = useState(initialRecipe?.title ?? "");
   const [description, setDescription] = useState(initialRecipe?.description ?? "");
   const [imageUrl, setImageUrl] = useState(initialRecipe?.image_url ?? "");
@@ -315,7 +315,7 @@ export function RecipeForm({
       instructions: linesToList(instructionsText),
       tags,
       dietary_tags: dietaryTags,
-      made_by: effectiveMadeBy,
+      made_by_user_id: effectiveMadeBy,
     });
   }
 
@@ -344,22 +344,22 @@ export function RecipeForm({
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-foreground">מי הכין/ה</label>
         <div className="grid grid-cols-4 gap-1.5">
-          {RECIPE_OWNERS.map((owner) => (
+          {(familyMembers ?? []).map((member) => (
             <button
-              key={owner}
+              key={member.user_id}
               type="button"
               onClick={() => {
                 setMadeByTouched(true);
-                setMadeBy(effectiveMadeBy === owner ? null : owner);
+                setMadeBy(effectiveMadeBy === member.user_id ? null : member.user_id);
               }}
               className={cn(
                 "rounded-lg border px-2 py-2 text-sm font-medium transition-colors cursor-pointer",
-                effectiveMadeBy === owner
+                effectiveMadeBy === member.user_id
                   ? "border-accent bg-accent/15 text-accent"
                   : "border-border text-muted hover:border-accent/50",
               )}
             >
-              {owner}
+              {member.display_name}
             </button>
           ))}
           <button

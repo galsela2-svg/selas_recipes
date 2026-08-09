@@ -17,7 +17,7 @@ function toInput(recipe: Recipe, image_url: string): RecipeInput {
     instructions: recipe.instructions,
     tags: recipe.tags,
     dietary_tags: recipe.dietary_tags,
-    made_by: recipe.made_by,
+    made_by_user_id: recipe.made_by_user_id,
   };
 }
 

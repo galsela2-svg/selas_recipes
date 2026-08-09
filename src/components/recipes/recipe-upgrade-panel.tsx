@@ -88,7 +88,7 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
       instructions: result.instructions,
       tags: recipe.tags,
       dietary_tags: Array.from(new Set([...recipe.dietary_tags, ...result.dietary_tags_add])),
-      made_by: recipe.made_by,
+      made_by_user_id: recipe.made_by_user_id,
     };
     updateRecipe.mutate(
       { id: recipe.id, input },

@@ -1,32 +1,59 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Share2 } from "lucide-react";
+import { Check, Copy, Link2, Share2 } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { formatRecipeForSharing, shareToWhatsApp } from "@/lib/share-recipe";
+import { useCreateRecipeShare } from "@/lib/queries/recipe-shares";
 import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-
-// A brand-accurate WhatsApp glyph reads more clearly at a glance than a
-// generic message-bubble icon for a button whose whole point is "this one
-// opens WhatsApp specifically".
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.03c-.24.68-1.19 1.25-1.95 1.41-.52.11-1.2.2-3.48-.75-2.92-1.21-4.8-4.17-4.94-4.36-.15-.19-1.18-1.57-1.18-3 0-1.42.75-2.13 1.02-2.42.24-.26.63-.38.99-.38.12 0 .23 0 .33.01.29.01.44.02.63.48.24.58.81 2 .88 2.15.07.15.11.32.02.5-.08.19-.13.3-.26.46-.13.16-.28.35-.4.47-.13.13-.27.27-.12.53.15.26.68 1.12 1.46 1.82 1 .9 1.85 1.18 2.11 1.31.26.13.42.11.57-.06.16-.18.66-.77.84-1.03.18-.26.35-.22.6-.13.24.09 1.55.73 1.82.86.26.13.44.19.5.3.07.11.07.63-.17 1.31Z" />
-    </svg>
-  );
-}
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { describeError } from "@/lib/utils";
 
 export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
   const { showToast } = useToast();
+  const createShare = useCreateRecipeShare();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const canUseNativeShare = typeof navigator !== "undefined" && Boolean(navigator.share);
 
   function shareText() {
     return formatRecipeForSharing(recipe);
+  }
+
+  async function handleCreateAppLink() {
+    try {
+      const share = await createShare.mutateAsync(recipe.id);
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      setShareLink(`${origin}/shared/${share.token}`);
+    } catch (err) {
+      showToast(describeError(err, "לא הצלחנו ליצור קישור שיתוף."));
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setLinkCopied(true);
+      showToast("הקישור הועתק!");
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      showToast("ההעתקה נכשלה. נסו שוב.");
+    }
+  }
+
+  function handleWhatsAppLink() {
+    if (!shareLink) return;
+    shareToWhatsApp(`הנה מתכון בשבילך — ${recipe.title}: ${shareLink}`);
+  }
+
+  function closeModal() {
+    setOpen(false);
+    setShareLink(null);
   }
 
   async function handleNativeShare() {
@@ -61,7 +88,31 @@ export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
         <Share2 className="size-4" />
       </Button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="שיתוף המתכון">
+      <Modal open={open} onClose={closeModal} title="שיתוף המתכון">
+        {shareLink ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted">
+              כל מי שרשום לאפליקציה ופותח את הקישור הזה יכול לצפות במתכון ולהוסיף אותו לאוסף
+              שלו.
+            </p>
+            <p className="truncate rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-muted" dir="ltr">
+              {shareLink}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={handleCopyLink}>
+                {linkCopied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
+                העתקת קישור
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={handleWhatsAppLink}>
+                <WhatsAppIcon className="size-4" />
+                וואטסאפ
+              </Button>
+            </div>
+            <Button variant="ghost" className="w-full" onClick={() => setShareLink(null)}>
+              חזרה לאפשרויות שיתוף
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-2">
           {canUseNativeShare && (
             <button
@@ -105,7 +156,26 @@ export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
               <span className="block text-xs text-muted">להדבקה בכל מקום שתרצו</span>
             </span>
           </button>
+
+          <button
+            onClick={handleCreateAppLink}
+            disabled={createShare.isPending}
+            className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-start transition-colors hover:bg-surface-2 cursor-pointer disabled:opacity-50"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
+              <Link2 className="size-4.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-foreground">
+                שליחה למשתמש באפליקציה
+              </span>
+              <span className="block text-xs text-muted">
+                קישור למתכון המלא, גם למי שלא במשפחה שלכם
+              </span>
+            </span>
+          </button>
         </div>
+        )}
       </Modal>
     </>
   );

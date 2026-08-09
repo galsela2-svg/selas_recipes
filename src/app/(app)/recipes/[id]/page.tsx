@@ -24,6 +24,7 @@ import {
   useToggleFavorite,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
+import { useFamilyMembers } from "@/lib/queries/family";
 import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -55,6 +56,8 @@ export default function RecipeDetailPage({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: recipe, isLoading } = useRecipe(id);
+  const { data: familyMembers } = useFamilyMembers();
+  const madeByName = familyMembers?.find((m) => m.user_id === recipe?.made_by_user_id)?.display_name;
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
@@ -94,7 +97,7 @@ export default function RecipeDetailPage({
       instructions: recipe.instructions,
       tags: recipe.tags,
       dietary_tags: recipe.dietary_tags,
-      made_by: recipe.made_by,
+      made_by_user_id: recipe.made_by_user_id,
     };
   }
 
@@ -201,9 +204,9 @@ export default function RecipeDetailPage({
           </span>
         </div>
 
-        {recipe.made_by && (
+        {madeByName && (
           <span className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
-            {recipe.made_by}
+            {madeByName}
           </span>
         )}
 

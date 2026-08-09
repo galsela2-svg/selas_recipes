@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Heart, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
-import { DIETARY_TAG_GROUPS, type RecipeOwner } from "@/lib/types";
+import { useFamilyMembers } from "@/lib/queries/family";
+import { DIETARY_TAG_GROUPS } from "@/lib/types";
 import type { CategoryTile } from "@/lib/quick-filter-tiles";
 import { useSettings } from "@/components/providers/settings-provider";
 import { useBackfillMissingCoverImages } from "@/lib/use-backfill-cover-images";
@@ -18,14 +19,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
-const OWNER_FILTERS: RecipeOwner[] = ["ניבה", "גל"];
-
 export default function DashboardPage() {
   const { data: recipes, isLoading } = useRecipes();
+  const { data: familyMembers } = useFamilyMembers();
   const [settings, setSetting] = useSettings();
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [ownerFilter, setOwnerFilter] = useState<RecipeOwner | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [showCategoryTiles, setShowCategoryTiles] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -114,7 +114,7 @@ export default function DashboardPage() {
         recipe.tags.some((t) => t.toLowerCase().includes(query)) ||
         recipe.dietary_tags.some((t) => t.toLowerCase().includes(query));
       const matchesFavorite = !favoritesOnly || recipe.is_favorite;
-      const matchesOwner = !ownerFilter || recipe.made_by === ownerFilter;
+      const matchesOwner = !ownerFilter || recipe.made_by_user_id === ownerFilter;
       const matchesDietary = selectedDietary.every((d) => recipe.dietary_tags.includes(d));
       return matchesSearch && matchesFavorite && matchesOwner && matchesDietary;
     });
@@ -125,29 +125,33 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-border bg-surface p-1">
-        {OWNER_FILTERS.map((owner) => (
+      {familyMembers && familyMembers.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1">
           <button
-            key={owner}
-            onClick={() => setOwnerFilter(ownerFilter === owner ? null : owner)}
+            onClick={() => setOwnerFilter(null)}
             className={cn(
-              "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-              ownerFilter === owner ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
+              "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+              ownerFilter === null ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
             )}
           >
-            {owner}
+            הכול
           </button>
-        ))}
-        <button
-          onClick={() => setOwnerFilter(null)}
-          className={cn(
-            "rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-            ownerFilter === null ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
-          )}
-        >
-          הכול
-        </button>
-      </div>
+          {familyMembers.map((member) => (
+            <button
+              key={member.user_id}
+              onClick={() => setOwnerFilter(ownerFilter === member.user_id ? null : member.user_id)}
+              className={cn(
+                "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                ownerFilter === member.user_id
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              {member.display_name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <Spinner />
