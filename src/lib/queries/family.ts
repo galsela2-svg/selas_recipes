@@ -4,12 +4,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { AdminUserRow, Family, FamilyInvite, FamilyMember, InvitePreview } from "@/lib/types";
 import { ACCENT_PRESETS } from "@/lib/settings-store";
+import { describeError } from "@/lib/utils";
 
 /** Resolves a member's stored color id (an ACCENT_PRESETS id, or null if
  * they haven't picked one) to the actual preset — the single place that
  * knows how to turn `member.color` into real CSS colors. */
 export function getMemberColorPreset(colorId: string | null | undefined) {
   return ACCENT_PRESETS.find((p) => p.id === colorId) ?? null;
+}
+
+/** Every mutation on this page touches something added by a recent
+ * supabase/schema.sql change (the color column, the admin RLS policies,
+ * admin_list_users). If that file hasn't been (fully) re-run against the
+ * right Supabase project yet, PostgREST's error message says so — "Could
+ * not find the X column/function ... in the schema cache" — so this
+ * surfaces that specific, actionable hint instead of a generic failure. */
+export function describeFamilySchemaError(err: unknown, fallback: string): string {
+  const message = describeError(err, fallback);
+  if (/could not find the .*(column|function).*schema cache/i.test(message)) {
+    return `${message} — נראה ש-supabase/schema.sql לא הורץ (או לא במלואו) בפרויקט ה-Supabase הנכון. הריצו את כל הקובץ מחדש ב-SQL Editor.`;
+  }
+  return message;
 }
 
 export const familyKeys = {
@@ -145,19 +160,20 @@ export function useDeleteInvite() {
   });
 }
 
-/** Any family member can set any other member's color (see set_member_color
- * in schema.sql) — an owner-only restriction wasn't the intent here, since
- * this whole app treats a household as a fully co-equal, trusted group. */
+/** Any family member can set any other member's color — a plain update
+ * against the "Members can update their family's members" RLS policy in
+ * schema.sql (not an RPC), since this whole app treats a household as a
+ * fully co-equal, trusted group everywhere else too. */
 export function useSetMemberColor() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ userId, color }: { userId: string; color: string | null }) => {
       const supabase = createClient();
-      const { error } = await supabase.rpc("set_member_color", {
-        target_user_id: userId,
-        new_color: color,
-      });
+      const { error } = await supabase
+        .from("family_members")
+        .update({ color })
+        .eq("user_id", userId);
       if (error) throw error;
     },
     onMutate: async ({ userId, color }) => {
@@ -223,9 +239,12 @@ export function useRedeemInvite() {
   });
 }
 
-/** Cross-family, admin-only views/actions — the RPCs themselves re-check
- * the caller's email server-side (see schema.sql), so hiding this from the
- * nav for everyone else is purely a UI nicety, not the actual boundary. */
+/** Cross-family, admin-only user listing — has to be an RPC (see the note
+ * above admin_list_users in schema.sql): it needs to join against
+ * auth.users for emails, which isn't reachable through RLS on a
+ * public-schema table. The function itself re-checks the caller's email
+ * server-side, so hiding this from the nav for everyone else is purely a
+ * UI nicety, not the actual boundary. */
 async function fetchAdminUsers(): Promise<AdminUserRow[]> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("admin_list_users");
@@ -237,16 +256,20 @@ export function useAdminUsers() {
   return useQuery({ queryKey: familyKeys.adminUsers, queryFn: fetchAdminUsers });
 }
 
+/** Plain updates/deletes against the "App admin can ..." RLS policies on
+ * family_members in schema.sql (not RPCs) — those policies re-check the
+ * caller's email server-side the same way the admin_list_users function
+ * does, so this isn't relying on the client-side email check either. */
 export function useAdminRenameMember() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ userId, name }: { userId: string; name: string }) => {
       const supabase = createClient();
-      const { error } = await supabase.rpc("admin_rename_member", {
-        target_user_id: userId,
-        new_name: name,
-      });
+      const { error } = await supabase
+        .from("family_members")
+        .update({ display_name: name })
+        .eq("user_id", userId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -262,7 +285,7 @@ export function useAdminRemoveMember() {
   return useMutation({
     mutationFn: async (userId: string) => {
       const supabase = createClient();
-      const { error } = await supabase.rpc("admin_remove_member", { target_user_id: userId });
+      const { error } = await supabase.from("family_members").delete().eq("user_id", userId);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, ShieldAlert, Trash2, Users } from "lucide-react";
 import {
+  describeFamilySchemaError,
   useAdminRemoveMember,
   useAdminRenameMember,
   useAdminUsers,
@@ -13,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/providers/toast-provider";
-import { describeError } from "@/lib/utils";
 import type { AdminUserRow } from "@/lib/types";
 
 const ADMIN_EMAIL = "galsela2@gmail.com";
@@ -31,7 +31,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
       await renameMember.mutateAsync({ userId: user.user_id, name: nameDraft.trim() });
       setEditing(false);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו לעדכן את השם."), "error");
+      showToast(describeFamilySchemaError(err, "לא הצלחנו לעדכן את השם."), "error");
     }
   }
 
@@ -45,7 +45,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
     try {
       await removeMember.mutateAsync(user.user_id);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו להסיר את המשתמש."), "error");
+      showToast(describeFamilySchemaError(err, "לא הצלחנו להסיר את המשתמש."), "error");
     }
   }
 
@@ -139,7 +139,7 @@ export default function AdminUsersPage() {
       <EmptyState
         icon={ShieldAlert}
         title="לא הצלחנו לטעון את רשימת המשתמשים"
-        description={describeError(
+        description={describeFamilySchemaError(
           error,
           "ודאו שהרצתם מחדש את supabase/schema.sql — הפונקציה admin_list_users צריכה להיות מוגדרת שם.",
         )}
