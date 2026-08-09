@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/join"];
 
+// Pages a signed-in but not-yet-in-any-family user should still be able to
+// reach without being bounced to /family: /family itself (else an infinite
+// redirect loop), and /shared/[token], since viewing a cross-family recipe
+// share doesn't require a family — only importing it does, and that RPC
+// enforces its own "you need a family" check server-side.
+const FAMILY_GATE_EXEMPT_PATHS = ["/family", "/shared"];
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -46,6 +53,30 @@ export async function updateSession(request: NextRequest) {
     redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // A freshly-created account (from /join, or one that navigated away
+  // before finishing family setup) has no family_members row yet, and
+  // every family-scoped page would otherwise just render empty — send
+  // them to /family, which already handles both "create your own" and
+  // "you were invited" cases.
+  if (
+    user &&
+    !isPublicPath &&
+    !FAMILY_GATE_EXEMPT_PATHS.some((p) => path.startsWith(p))
+  ) {
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/family";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
   return response;

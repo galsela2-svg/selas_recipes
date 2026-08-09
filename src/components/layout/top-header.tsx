@@ -13,6 +13,7 @@ const STATIC_TITLES: Record<string, string> = {
   "/settings": "הגדרות",
   "/export": "ייצוא לספר מתכונים",
   "/family": "המשפחה שלי",
+  "/settings/admin": "ניהול משתמשים",
 };
 
 // The three bottom-tab destinations — everything else is a page you

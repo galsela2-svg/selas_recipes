@@ -271,6 +271,82 @@ $$;
 grant execute on function public.redeem_family_invite(text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Admin-only, cross-family introspection/management, gated to a single
+-- hardcoded email (the app's owner) rather than a general roles system —
+-- there's exactly one person who needs this, and a real roles table would
+-- be overkill for a household app. Every function here re-checks the email
+-- itself (not just a client-side check) since these bypass the normal
+-- "your own family only" boundary that the rest of this file enforces.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_list_users()
+returns table(
+  user_id uuid,
+  email text,
+  display_name text,
+  role text,
+  family_id uuid,
+  family_name text,
+  joined_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.email() <> 'galsela2@gmail.com' then
+    raise exception 'אין הרשאה';
+  end if;
+
+  return query
+    select u.id, u.email, fm.display_name, fm.role, f.id, f.name, fm.joined_at
+    from auth.users u
+    left join public.family_members fm on fm.user_id = u.id
+    left join public.families f on f.id = fm.family_id
+    order by u.created_at asc;
+end;
+$$;
+
+grant execute on function public.admin_list_users() to authenticated;
+
+create or replace function public.admin_rename_member(target_user_id uuid, new_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.email() <> 'galsela2@gmail.com' then
+    raise exception 'אין הרשאה';
+  end if;
+  if btrim(coalesce(new_name, '')) = '' then
+    raise exception 'יש להזין שם';
+  end if;
+
+  update public.family_members set display_name = btrim(new_name) where user_id = target_user_id;
+end;
+$$;
+
+grant execute on function public.admin_rename_member(uuid, text) to authenticated;
+
+create or replace function public.admin_remove_member(target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.email() <> 'galsela2@gmail.com' then
+    raise exception 'אין הרשאה';
+  end if;
+
+  delete from public.family_members where user_id = target_user_id;
+end;
+$$;
+
+grant execute on function public.admin_remove_member(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- recipes
 -- ---------------------------------------------------------------------------
 create table if not exists public.recipes (

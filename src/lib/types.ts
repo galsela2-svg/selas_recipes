@@ -161,6 +161,18 @@ export type FamilyMember = {
   joined_at: string;
 };
 
+/** One row per app user, from admin_list_users() — a user with no family
+ * yet has null display_name/role/family_id/family_name/joined_at. */
+export type AdminUserRow = {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  role: FamilyRole | null;
+  family_id: string | null;
+  family_name: string | null;
+  joined_at: string | null;
+};
+
 export type FamilyInvite = {
   id: string;
   family_id: string;

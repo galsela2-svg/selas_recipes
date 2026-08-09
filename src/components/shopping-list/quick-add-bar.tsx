@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Check, Pin, Settings, Zap } from "lucide-react";
+import { Pin, Settings, Zap } from "lucide-react";
 import { useKnownItemsDetailed } from "@/lib/queries/known-items";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
-import { cn } from "@/lib/utils";
 
 const MAX_VISIBLE = 20;
 
@@ -18,13 +17,18 @@ export function QuickAddBar({
   const { data: knownItems, isLoading } = useKnownItemsDetailed();
   const addItems = useAddShoppingItems();
 
-  const visible = useMemo(() => (knownItems ?? []).slice(0, MAX_VISIBLE), [knownItems]);
+  // Tapping a token adds it and drops it from this row (not just marks it as
+  // added) — it comes back once it's off the shopping list again (bought and
+  // cleared, or removed by hand), instead of lingering here disabled.
+  const visible = useMemo(
+    () => (knownItems ?? []).filter((item) => !existingNames.has(item.name)).slice(0, MAX_VISIBLE),
+    [knownItems, existingNames],
+  );
 
   if (isLoading) return null;
   if (visible.length === 0) return null;
 
   function handleAdd(name: string) {
-    if (existingNames.has(name)) return;
     addItems.mutate({ names: [name], recipeId: null });
   }
 
@@ -45,27 +49,17 @@ export function QuickAddBar({
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {visible.map((item) => {
-          const onList = existingNames.has(item.name);
-          return (
-            <button
-              key={item.name}
-              type="button"
-              onClick={() => handleAdd(item.name)}
-              disabled={onList}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors",
-                onList
-                  ? "border-success/40 bg-success/10 text-success cursor-default"
-                  : "border-border bg-surface text-foreground hover:border-accent/50",
-              )}
-            >
-              {item.pinned && !onList && <Pin className="size-3 fill-accent text-accent" />}
-              {onList && <Check className="size-3.5" />}
-              {item.name}
-            </button>
-          );
-        })}
+        {visible.map((item) => (
+          <button
+            key={item.name}
+            type="button"
+            onClick={() => handleAdd(item.name)}
+            className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground transition-colors hover:border-accent/50 cursor-pointer"
+          >
+            {item.pinned && <Pin className="size-3 fill-accent text-accent" />}
+            {item.name}
+          </button>
+        ))}
       </div>
     </div>
   );

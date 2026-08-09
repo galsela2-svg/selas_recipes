@@ -7,10 +7,13 @@ import {
   BookOpen,
   Check,
   ChevronLeft,
+  Copy,
   KeyRound,
   LogOut,
   Monitor,
   Moon,
+  Share2,
+  ShieldCheck,
   ShoppingCart,
   Sun,
   Users,
@@ -23,7 +26,11 @@ import { ACCENT_PRESETS, type ThemeMode } from "@/lib/settings-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
+import { useToast } from "@/components/providers/toast-provider";
 import { cn } from "@/lib/utils";
+
+const ADMIN_EMAIL = "galsela2@gmail.com";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "בהיר", icon: Sun },
@@ -86,6 +93,58 @@ function LinkRow({
       <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
       <ChevronLeft className="size-4 shrink-0 text-muted" />
     </Link>
+  );
+}
+
+/** A general "come use this app" link — unlike a family invite, opening it
+ * doesn't join any existing family: it lets someone create their own
+ * account, then choose on /family whether to start their own (solo) family
+ * or a shared one and invite others into it. */
+function ShareAppCard() {
+  const { showToast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const url = typeof window !== "undefined" ? `${window.location.origin}/join` : "";
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      showToast("הקישור הועתק!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast("ההעתקה נכשלה. נסו שוב.");
+    }
+  }
+
+  function handleWhatsApp() {
+    const text = `בואו תנסו את אפליקציית המתכונים שלי: ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center gap-2">
+        <Share2 className="size-4.5 shrink-0 text-accent" />
+        <p className="text-sm font-medium text-foreground">שיתוף האפליקציה</p>
+      </div>
+      <p className="text-xs text-muted">
+        כל מי שנרשם דרך הקישור הזה יכול להשתמש באפליקציה לבד, או לפתוח משפחה משלו ולהזמין אליה
+        אנשים — בלי להצטרף למשפחה שלכם.
+      </p>
+      <p className="truncate rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted" dir="ltr">
+        {url}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" className="flex-1" onClick={handleCopy}>
+          {copied ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
+          העתקת קישור
+        </Button>
+        <Button variant="secondary" size="sm" className="flex-1" onClick={handleWhatsApp}>
+          <WhatsAppIcon className="size-4" />
+          וואטסאפ
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -257,7 +316,16 @@ export default function SettingsPage() {
         <LinkRow href="/family" label="המשפחה שלי" icon={Users} />
         <LinkRow href="/shopping-list" label="רשימת קניות ופריטים נפוצים" icon={ShoppingCart} />
         <LinkRow href="/export" label="ייצוא, גיבוי וספר מתכונים" icon={BookOpen} />
+        {email === ADMIN_EMAIL && (
+          <LinkRow href="/settings/admin" label="ניהול משתמשים" icon={ShieldCheck} />
+        )}
       </SettingsSection>
+
+      {email === ADMIN_EMAIL && (
+        <SettingsSection title="הזמנת משתמשים חדשים">
+          <ShareAppCard />
+        </SettingsSection>
+      )}
 
       <SettingsSection title="חשבון">
         {email && (

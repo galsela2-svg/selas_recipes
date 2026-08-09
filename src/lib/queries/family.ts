@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import type { Family, FamilyInvite, FamilyMember, InvitePreview } from "@/lib/types";
+import type { AdminUserRow, Family, FamilyInvite, FamilyMember, InvitePreview } from "@/lib/types";
 import { ACCENT_PRESETS } from "@/lib/settings-store";
 
 /** Resolves a member's stored color id (an ACCENT_PRESETS id, or null if
@@ -17,6 +17,7 @@ export const familyKeys = {
   members: ["family", "members"] as const,
   invites: ["family", "invites"] as const,
   invitePreview: (token: string) => ["family", "invite-preview", token] as const,
+  adminUsers: ["family", "admin-users"] as const,
 };
 
 async function fetchMyFamily(): Promise<Family | null> {
@@ -218,6 +219,55 @@ export function useRedeemInvite() {
       });
       if (error) throw error;
       return data as string;
+    },
+  });
+}
+
+/** Cross-family, admin-only views/actions — the RPCs themselves re-check
+ * the caller's email server-side (see schema.sql), so hiding this from the
+ * nav for everyone else is purely a UI nicety, not the actual boundary. */
+async function fetchAdminUsers(): Promise<AdminUserRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("admin_list_users");
+  if (error) throw error;
+  return data as AdminUserRow[];
+}
+
+export function useAdminUsers() {
+  return useQuery({ queryKey: familyKeys.adminUsers, queryFn: fetchAdminUsers });
+}
+
+export function useAdminRenameMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, name }: { userId: string; name: string }) => {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("admin_rename_member", {
+        target_user_id: userId,
+        new_name: name,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: familyKeys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: familyKeys.members });
+    },
+  });
+}
+
+export function useAdminRemoveMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const supabase = createClient();
+      const { error } = await supabase.rpc("admin_remove_member", { target_user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: familyKeys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: familyKeys.members });
     },
   });
 }
