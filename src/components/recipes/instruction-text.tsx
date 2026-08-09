@@ -126,13 +126,21 @@ export function InstructionText({
           );
         }
 
+        // <ruby>/<rt> (not position:absolute) so the quantity annotation
+        // stays correctly attached to its word when that word wraps onto a
+        // new line — an absolutely-positioned overlay computes its box
+        // relative to the pre-wrap layout pass in that case and ends up
+        // floating over the previous line instead, which is what "extra
+        // gaps" in the rendered text turned out to be.
         return (
-          <span key={i} className="relative inline-block whitespace-nowrap">
-            <span className="pointer-events-none absolute inset-x-0 -top-4 flex justify-center whitespace-nowrap text-[11px] font-normal leading-none text-muted">
-              ({segment.quantity})
-            </span>
+          <ruby key={i} className="[ruby-position:over]">
             {text.slice(segment.start, segment.end)}
-          </span>
+            <rp>(</rp>
+            <rt className="px-0.5 text-[clamp(11px,0.45em,20px)] font-semibold leading-none text-accent [unicode-bidi:isolate]">
+              {segment.quantity}
+            </rt>
+            <rp>)</rp>
+          </ruby>
         );
       })}
       {picker}
