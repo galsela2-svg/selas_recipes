@@ -30,7 +30,7 @@ export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       setShareLink(`${origin}/shared/${share.token}`);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו ליצור קישור שיתוף."));
+      showToast(describeError(err, "לא הצלחנו ליצור קישור שיתוף."), "error");
     }
   }
 
@@ -42,7 +42,7 @@ export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
       showToast("הקישור הועתק!");
       setTimeout(() => setLinkCopied(false), 2000);
     } catch {
-      showToast("ההעתקה נכשלה. נסו שוב.");
+      showToast("ההעתקה נכשלה. נסו שוב.", "error");
     }
   }
 
@@ -78,7 +78,7 @@ export function ShareRecipeButton({ recipe }: { recipe: Recipe }) {
       showToast("המתכון הועתק!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast("ההעתקה נכשלה. נסו שוב.");
+      showToast("ההעתקה נכשלה. נסו שוב.", "error");
     }
   }
 

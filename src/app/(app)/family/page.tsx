@@ -104,7 +104,7 @@ function InviteCard({ token, onRevoke }: { token: string; onRevoke: () => void }
       showToast("הקישור הועתק!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast("ההעתקה נכשלה. נסו שוב.");
+      showToast("ההעתקה נכשלה. נסו שוב.", "error");
     }
   }
 
@@ -194,7 +194,7 @@ function MemberRow({
                 },
                 {
                   onError: (err) =>
-                    showToast(describeError(err, "לא הצלחנו לעדכן את הצבע. נסו שוב.")),
+                    showToast(describeError(err, "לא הצלחנו לעדכן את הצבע. נסו שוב."), "error"),
                 },
               )
             }
@@ -241,7 +241,7 @@ export default function FamilyPage() {
       await renameFamily.mutateAsync({ id: family.id, name: nameDraft.trim() });
       setEditingName(false);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו לעדכן את שם המשפחה."));
+      showToast(describeError(err, "לא הצלחנו לעדכן את שם המשפחה."), "error");
     }
   }
 
@@ -250,7 +250,7 @@ export default function FamilyPage() {
     try {
       await createInvite.mutateAsync({ familyId: family.id });
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו ליצור קישור הזמנה."));
+      showToast(describeError(err, "לא הצלחנו ליצור קישור הזמנה."), "error");
     }
   }
 
@@ -259,7 +259,7 @@ export default function FamilyPage() {
     try {
       await removeMember.mutateAsync(memberUserId);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו להסיר את בן המשפחה."));
+      showToast(describeError(err, "לא הצלחנו להסיר את בן המשפחה."), "error");
     }
   }
 
@@ -332,7 +332,7 @@ export default function FamilyPage() {
               try {
                 await deleteInvite.mutateAsync(inv.id);
               } catch (err) {
-                showToast(describeError(err, "לא הצלחנו לבטל את ההזמנה."));
+                showToast(describeError(err, "לא הצלחנו לבטל את ההזמנה."), "error");
               }
             }}
           />

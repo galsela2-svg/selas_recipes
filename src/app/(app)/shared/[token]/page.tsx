@@ -23,7 +23,7 @@ export default function SharedRecipePage({ params }: { params: Promise<{ token: 
       showToast("המתכון נוסף לאוסף שלכם!");
       router.replace(`/recipes/${imported.id}`);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו להוסיף את המתכון."));
+      showToast(describeError(err, "לא הצלחנו להוסיף את המתכון."), "error");
     }
   }
 

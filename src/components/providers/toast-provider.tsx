@@ -9,10 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type ToastState = { id: number; message: string } | null;
-type ToastContextValue = { showToast: (message: string) => void };
+type ToastVariant = "success" | "error";
+type ToastState = { id: number; message: string; variant: ToastVariant } | null;
+type ToastContextValue = { showToast: (message: string, variant?: ToastVariant) => void };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
@@ -20,9 +22,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState>(null);
   const idRef = useRef(0);
 
-  const showToast = useCallback((message: string) => {
+  const showToast = useCallback((message: string, variant: ToastVariant = "success") => {
     idRef.current += 1;
-    setToast({ id: idRef.current, message });
+    setToast({ id: idRef.current, message, variant });
   }, []);
 
   const dismiss = useCallback(() => setToast(null), []);
@@ -30,7 +32,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {toast && <ToastBanner key={toast.id} message={toast.message} onDismiss={dismiss} />}
+      {toast && (
+        <ToastBanner
+          key={toast.id}
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={dismiss}
+        />
+      )}
     </ToastContext.Provider>
   );
 }
@@ -41,7 +50,15 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-function ToastBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+function ToastBanner({
+  message,
+  variant,
+  onDismiss,
+}: {
+  message: string;
+  variant: ToastVariant;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     const timeout = setTimeout(onDismiss, 3500);
     return () => clearTimeout(timeout);
@@ -49,8 +66,17 @@ function ToastBanner({ message, onDismiss }: { message: string; onDismiss: () =>
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-      <div className="toast-in pointer-events-auto flex max-w-[90vw] items-center gap-2 rounded-full bg-success px-4 py-2.5 text-sm font-medium text-white shadow-lg">
-        <CheckCircle2 className="size-4.5 shrink-0" />
+      <div
+        className={cn(
+          "toast-in pointer-events-auto flex max-w-[90vw] items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-white shadow-lg",
+          variant === "error" ? "bg-danger" : "bg-success",
+        )}
+      >
+        {variant === "error" ? (
+          <AlertCircle className="size-4.5 shrink-0" />
+        ) : (
+          <CheckCircle2 className="size-4.5 shrink-0" />
+        )}
         <span className="line-clamp-1">{message}</span>
       </div>
     </div>

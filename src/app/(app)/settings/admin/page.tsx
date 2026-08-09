@@ -31,7 +31,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
       await renameMember.mutateAsync({ userId: user.user_id, name: nameDraft.trim() });
       setEditing(false);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו לעדכן את השם."));
+      showToast(describeError(err, "לא הצלחנו לעדכן את השם."), "error");
     }
   }
 
@@ -45,7 +45,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
     try {
       await removeMember.mutateAsync(user.user_id);
     } catch (err) {
-      showToast(describeError(err, "לא הצלחנו להסיר את המשתמש."));
+      showToast(describeError(err, "לא הצלחנו להסיר את המשתמש."), "error");
     }
   }
 

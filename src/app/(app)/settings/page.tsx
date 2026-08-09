@@ -112,7 +112,7 @@ function ShareAppCard() {
       showToast("הקישור הועתק!");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast("ההעתקה נכשלה. נסו שוב.");
+      showToast("ההעתקה נכשלה. נסו שוב.", "error");
     }
   }
 
