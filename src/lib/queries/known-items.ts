@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { KnownItem } from "@/lib/types";
 import { getCurrentFamilyId } from "@/lib/queries/family";
+import { extractProductName } from "@/lib/ingredient-product-name";
 
 export const knownItemKeys = {
   all: ["known-items"] as const,
@@ -70,11 +71,19 @@ function invalidateKnownItems(queryClient: QueryClient) {
 // every single ingredient added while filling out a recipe, which made
 // typing feel laggy; the new/bumped item shows up next time those lists
 // naturally refetch (staleTime, navigation, or another mutation).
+//
+// Recorded as product names, not full ingredient lines (see
+// extractProductName) — a line whose quantity/unit can't be confidently
+// stripped is skipped rather than recorded as a guess.
 export function useRecordKnownItems() {
   return useMutation({
     mutationFn: async (names: string[]) => {
       const cleaned = Array.from(
-        new Set(names.map((n) => n.trim()).filter(Boolean)),
+        new Set(
+          names
+            .map((n) => extractProductName(n))
+            .filter((n): n is string => Boolean(n)),
+        ),
       );
       if (cleaned.length === 0) return;
 
