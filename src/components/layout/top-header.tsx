@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChefHat, ChevronRight, Settings } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useFamily } from "@/lib/queries/family";
+import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
 
 const STATIC_TITLES: Record<string, string> = {
   "/dashboard": "מתכונים",
@@ -33,6 +34,13 @@ function usePageTitle(pathname: string): string {
   if (editMatch) return "עריכת מתכון";
   if (recipeId) return recipe?.title ?? "מתכון";
   if (pathname.match(/^\/shared\/[^/]+$/)) return "מתכון משותף";
+
+  const categoryMatch = pathname.match(/^\/dashboard\/category\/([^/]+)$/);
+  if (categoryMatch) {
+    return categoryMatch[1] === OTHER_CATEGORY_SLUG
+      ? "מתכונים נוספים"
+      : decodeURIComponent(categoryMatch[1]);
+  }
 
   const base = STATIC_TITLES[pathname] ?? "מתכונים";
   return base === "מתכונים" && family?.name ? `מתכונים - ${family.name}` : base;

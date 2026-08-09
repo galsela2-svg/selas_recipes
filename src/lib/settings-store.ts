@@ -1,4 +1,5 @@
 import { DEFAULT_TILE_KEYS } from "@/lib/quick-filter-tiles";
+import { DEFAULT_DASHBOARD_CATEGORIES } from "@/lib/meal-type-sections";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -25,6 +26,10 @@ export type AppSettings = {
   keepScreenAwake: boolean;
   timerSoundEnabled: boolean;
   quickFilterTileKeys: string[];
+  // Ordered list of dietary_tags shown as their own section (heading + up
+  // to 9 recipes, scrollable for more) on the main recipes page — a
+  // per-device preference, same as quickFilterTileKeys above.
+  dashboardCategoryTags: string[];
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,6 +37,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   accentId: "rose",
   defaultUnitSystem: "metric",
   quickFilterTileKeys: DEFAULT_TILE_KEYS,
+  dashboardCategoryTags: DEFAULT_DASHBOARD_CATEGORIES,
   keepScreenAwake: true,
   timerSoundEnabled: true,
 };
