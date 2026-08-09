@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, Heart, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
+import { ChevronDown, Heart, ListPlus, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
 import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
 import { DIETARY_TAG_GROUPS } from "@/lib/types";
@@ -12,6 +12,7 @@ import { useBackfillMissingCoverImages } from "@/lib/use-backfill-cover-images";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
 import { CategoryTiles } from "@/components/dashboard/category-tiles";
+import { DashboardCategoriesEditor } from "@/components/dashboard/dashboard-categories-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [showCategoryTiles, setShowCategoryTiles] = useState(false);
+  const [showCategoryEditor, setShowCategoryEditor] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -295,12 +297,30 @@ export default function DashboardPage() {
               }
             />
           ) : isBrowsingUnfiltered ? (
-            <CategorizedRecipeGrid
-              recipes={filtered}
-              selectedIds={selectionMode ? selectedIds : undefined}
-              onToggleSelect={toggleSelected}
-              highlightedId={highlightedId}
-            />
+            <>
+              <CategorizedRecipeGrid
+                recipes={filtered}
+                selectedIds={selectionMode ? selectedIds : undefined}
+                onToggleSelect={toggleSelected}
+                highlightedId={highlightedId}
+              />
+
+              <button
+                onClick={() => setShowCategoryEditor((prev) => !prev)}
+                className={cn(
+                  "mt-4 flex items-center gap-1.5 text-sm font-medium cursor-pointer",
+                  showCategoryEditor ? "text-accent" : "text-muted hover:text-foreground",
+                )}
+              >
+                <ListPlus className="size-4" />
+                עריכת קטגוריות בעמוד הראשי
+              </button>
+              {showCategoryEditor && (
+                <div className="mt-2">
+                  <DashboardCategoriesEditor />
+                </div>
+              )}
+            </>
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
               {filtered.map((recipe) => (
