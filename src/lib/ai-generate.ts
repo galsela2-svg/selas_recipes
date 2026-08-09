@@ -3,6 +3,22 @@ import { isGeminiQuotaError } from "@/lib/ai-error";
 import { generateGroqJson } from "@/lib/groq";
 import { generateMistralJson } from "@/lib/mistral";
 
+// Matches Arabic-script characters (main block + supplement + extended-A +
+// presentation forms). The models behind this app occasionally drift into
+// Arabic script mid-word inside otherwise-Hebrew output — a known quirk
+// that a prompt instruction alone doesn't reliably prevent — so every raw
+// AI response is scrubbed here, the single choke point all of them pass
+// through, rather than trusting each of the seven-plus call sites to do it.
+const ARABIC_SCRIPT_PATTERN =
+  /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
+
+function stripArabicScript(text: string): string {
+  return text
+    .replace(ARABIC_SCRIPT_PATTERN, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
 /**
  * Structured-JSON generation with automatic free fallbacks, three deep:
  * Gemini (native JSON-schema enforcement) first; if that specifically fails
@@ -28,22 +44,24 @@ export async function generateStructuredJson(params: {
       },
     });
     if (!response.text) throw new Error("No text content in response");
-    return response.text;
+    return stripArabicScript(response.text);
   } catch (err) {
     if (!isGeminiQuotaError(err)) throw err;
 
     try {
-      return await generateGroqJson({
+      const text = await generateGroqJson({
         system: params.systemInstruction,
         prompt: params.contents,
         schema: params.schema,
       });
+      return stripArabicScript(text);
     } catch {
-      return generateMistralJson({
+      const text = await generateMistralJson({
         system: params.systemInstruction,
         prompt: params.contents,
         schema: params.schema,
       });
+      return stripArabicScript(text);
     }
   }
 }
@@ -79,5 +97,5 @@ export async function generateStructuredJsonFromImage(params: {
     },
   });
   if (!response.text) throw new Error("No text content in response");
-  return response.text;
+  return stripArabicScript(response.text);
 }
