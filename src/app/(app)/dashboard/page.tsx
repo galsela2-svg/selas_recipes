@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Heart, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
-import { useFamilyMembers } from "@/lib/queries/family";
+import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
 import { DIETARY_TAG_GROUPS } from "@/lib/types";
 import type { CategoryTile } from "@/lib/quick-filter-tiles";
 import { useSettings } from "@/components/providers/settings-provider";
@@ -136,20 +136,24 @@ export default function DashboardPage() {
           >
             הכול
           </button>
-          {familyMembers.map((member) => (
-            <button
-              key={member.user_id}
-              onClick={() => setOwnerFilter(ownerFilter === member.user_id ? null : member.user_id)}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-                ownerFilter === member.user_id
-                  ? "bg-accent/15 text-accent"
-                  : "text-muted hover:text-foreground",
-              )}
-            >
-              {member.display_name}
-            </button>
-          ))}
+          {familyMembers.map((member) => {
+            const active = ownerFilter === member.user_id;
+            const preset = getMemberColorPreset(member.color);
+            return (
+              <button
+                key={member.user_id}
+                onClick={() => setOwnerFilter(active ? null : member.user_id)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                  active && !preset && "bg-accent/15 text-accent",
+                  !active && "text-muted hover:text-foreground",
+                )}
+                style={active && preset ? { backgroundColor: `${preset.color}26`, color: preset.color } : undefined}
+              >
+                {member.display_name}
+              </button>
+            );
+          })}
         </div>
       )}
 
