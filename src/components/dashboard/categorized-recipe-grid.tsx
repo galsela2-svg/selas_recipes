@@ -40,7 +40,15 @@ function SectionPanel({
         <span className="truncate">{label}</span>
         <ChevronLeft className="size-4 shrink-0 text-muted" />
       </Link>
-      <div className="grid grid-flow-col grid-rows-3 auto-cols-[31%] gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:auto-cols-[23%] lg:auto-cols-[18%]">
+      {/* grid-template-rows is sized to the actual row count (capped at 3),
+          not a fixed grid-rows-3 — an empty row from minmax(0,1fr) still
+          claims a full row's height on an auto-height grid, so without this
+          a category with 1-2 recipes would leave dead white space instead
+          of the panel shrinking to fit them. */}
+      <div
+        className="grid grid-flow-col auto-cols-[31%] gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:auto-cols-[23%] lg:auto-cols-[18%]"
+        style={{ gridTemplateRows: `repeat(${Math.min(3, recipes.length)}, minmax(0, 1fr))` }}
+      >
         {recipes.map((recipe) => (
           <div key={recipe.id} className="snap-start">
             <RecipeCard
