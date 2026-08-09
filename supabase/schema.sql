@@ -304,7 +304,10 @@ begin
   end if;
 
   return query
-    select u.id, u.email, fm.display_name, fm.role, f.id, f.name, fm.joined_at
+    -- auth.users.email is character varying(255), not text — an explicit
+    -- cast is required or Postgres rejects the whole RETURN QUERY with
+    -- "structure of query does not match function result type".
+    select u.id, u.email::text, fm.display_name, fm.role, f.id, f.name, fm.joined_at
     from auth.users u
     left join public.family_members fm on fm.user_id = u.id
     left join public.families f on f.id = fm.family_id
