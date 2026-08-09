@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Check, Copy, Crown, Trash2, UserPlus, Users } from "lucide-react";
 import {
+  describeFamilySchemaError,
   getMemberColorPreset,
   useCreateFamily,
   useCreateInvite,
@@ -194,7 +195,7 @@ function MemberRow({
                 },
                 {
                   onError: (err) =>
-                    showToast(describeError(err, "לא הצלחנו לעדכן את הצבע. נסו שוב."), "error"),
+                    showToast(describeFamilySchemaError(err, "לא הצלחנו לעדכן את הצבע."), "error"),
                 },
               )
             }

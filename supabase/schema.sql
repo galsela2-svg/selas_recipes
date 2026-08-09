@@ -91,12 +91,19 @@ create policy "Members can read their family's members"
   to authenticated
   using (family_id = public.current_family_id());
 
+-- Plain RLS, not a security-definer RPC: any member can update any other
+-- member's row in their own family (name or color) — the household is a
+-- trusted, fully co-equal group everywhere else in this schema (recipes,
+-- shopping list, known items all work the same way), and this is the exact
+-- same mechanism those already use, rather than a separate function whose
+-- deployment could drift out of sync with the rest of the file.
 drop policy if exists "Members can update their own display name" on public.family_members;
-create policy "Members can update their own display name"
+drop policy if exists "Members can update their family's members" on public.family_members;
+create policy "Members can update their family's members"
   on public.family_members for update
   to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid() and family_id = public.current_family_id());
+  using (family_id = public.current_family_id())
+  with check (family_id = public.current_family_id());
 
 drop policy if exists "Owners can remove other members" on public.family_members;
 create policy "Owners can remove other members"
@@ -111,33 +118,28 @@ create policy "Owners can remove other members"
     )
   );
 
--- Lets any family member set the display color of *any* member (not just
--- their own) — the household is a trusted, fully co-equal group everywhere
--- else in this schema (recipes, shopping list, known items all work the
--- same way), and color-picking for the whole household from one screen is
--- exactly how the settings page is meant to be used. Deliberately a
--- separate RPC rather than broadening the "update their own display name"
--- policy above, so that policy's self-only restriction on renaming stays
--- intact — this only ever touches the color column.
-create or replace function public.set_member_color(target_user_id uuid, new_color text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if not exists (
-    select 1 from public.family_members
-    where user_id = target_user_id and family_id = public.current_family_id()
-  ) then
-    raise exception 'המשתמש אינו חבר במשפחה שלך';
-  end if;
+-- App admin (hardcoded email — see the note above admin_list_users further
+-- down) can update or remove any member in *any* family, not just their
+-- own. Postgres OR's multiple permissive policies for the same command
+-- together, so this simply adds to the policies above rather than
+-- replacing them. Plain RLS again, not RPCs, for the same reason as above.
+drop policy if exists "App admin can update any member" on public.family_members;
+create policy "App admin can update any member"
+  on public.family_members for update
+  to authenticated
+  using (auth.email() = 'galsela2@gmail.com')
+  with check (auth.email() = 'galsela2@gmail.com');
 
-  update public.family_members set color = new_color where user_id = target_user_id;
-end;
-$$;
+drop policy if exists "App admin can remove any member" on public.family_members;
+create policy "App admin can remove any member"
+  on public.family_members for delete
+  to authenticated
+  using (auth.email() = 'galsela2@gmail.com');
 
-grant execute on function public.set_member_color(uuid, text) to authenticated;
+-- Superseded by the RLS policies above.
+drop function if exists public.set_member_color(uuid, text);
+drop function if exists public.admin_rename_member(uuid, text);
+drop function if exists public.admin_remove_member(uuid);
 
 -- No direct insert policy on families/family_members: membership only ever
 -- changes through create_family()/redeem_family_invite() below (both
@@ -271,12 +273,15 @@ $$;
 grant execute on function public.redeem_family_invite(text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Admin-only, cross-family introspection/management, gated to a single
--- hardcoded email (the app's owner) rather than a general roles system —
--- there's exactly one person who needs this, and a real roles table would
--- be overkill for a household app. Every function here re-checks the email
--- itself (not just a client-side check) since these bypass the normal
--- "your own family only" boundary that the rest of this file enforces.
+-- Admin-only, cross-family user listing, gated to a single hardcoded email
+-- (the app's owner) rather than a general roles system — there's exactly
+-- one person who needs this, and a real roles table would be overkill for
+-- a household app. This one has to be a function (not RLS): it needs to
+-- join against auth.users for emails, and auth.users isn't something RLS
+-- on a public-schema table can expose. Actually renaming/removing members
+-- across families is handled by the "App admin can ..." RLS policies on
+-- family_members above instead, precisely so those two don't depend on a
+-- function existing.
 -- ---------------------------------------------------------------------------
 create or replace function public.admin_list_users()
 returns table(
@@ -308,43 +313,6 @@ end;
 $$;
 
 grant execute on function public.admin_list_users() to authenticated;
-
-create or replace function public.admin_rename_member(target_user_id uuid, new_name text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if auth.email() <> 'galsela2@gmail.com' then
-    raise exception 'אין הרשאה';
-  end if;
-  if btrim(coalesce(new_name, '')) = '' then
-    raise exception 'יש להזין שם';
-  end if;
-
-  update public.family_members set display_name = btrim(new_name) where user_id = target_user_id;
-end;
-$$;
-
-grant execute on function public.admin_rename_member(uuid, text) to authenticated;
-
-create or replace function public.admin_remove_member(target_user_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if auth.email() <> 'galsela2@gmail.com' then
-    raise exception 'אין הרשאה';
-  end if;
-
-  delete from public.family_members where user_id = target_user_id;
-end;
-$$;
-
-grant execute on function public.admin_remove_member(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- recipes
