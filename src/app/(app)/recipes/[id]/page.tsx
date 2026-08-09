@@ -43,6 +43,7 @@ import { ServingsAdjuster } from "@/components/recipes/servings-adjuster";
 import { InstructionText } from "@/components/recipes/instruction-text";
 import { ImageField } from "@/components/recipes/image-field";
 import { RecipeUpgradePanel } from "@/components/recipes/recipe-upgrade-panel";
+import { ShareRecipeButton } from "@/components/recipes/share-recipe-button";
 import { useSettings } from "@/components/providers/settings-provider";
 
 export default function RecipeDetailPage({
@@ -270,6 +271,7 @@ export default function RecipeDetailPage({
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ShareRecipeButton recipe={recipe} />
             <RecipeUpgradePanel recipe={recipe} />
             <Link href={`/recipes/${id}/edit`}>
               <Button variant="ghost" title="עריכה" aria-label="עריכה">
