@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Check, Copy, Crown, Trash2, UserPlus, Users } from "lucide-react";
 import {
+  getMemberColorPreset,
   useCreateFamily,
   useCreateInvite,
   useDeleteInvite,
@@ -11,8 +12,12 @@ import {
   useFamilyMembers,
   useRemoveMember,
   useRenameFamily,
+  useSetMemberColor,
 } from "@/lib/queries/family";
 import { useCurrentUserId } from "@/lib/queries/auth";
+import { ACCENT_PRESETS } from "@/lib/settings-store";
+import { cn } from "@/lib/utils";
+import type { FamilyMember } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -130,6 +135,74 @@ function InviteCard({ token, onRevoke }: { token: string; onRevoke: () => void }
   );
 }
 
+/** Any member can set any other member's color (see the RLS note on
+ * set_member_color in schema.sql) — clicking a swatch again clears it back
+ * to the default accent. */
+function MemberRow({
+  member,
+  canRemove,
+  onRemove,
+}: {
+  member: FamilyMember;
+  canRemove: boolean;
+  onRemove: () => void;
+}) {
+  const setColor = useSetMemberColor();
+  const preset = getMemberColorPreset(member.color);
+
+  return (
+    <li className="space-y-2 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent"
+          style={preset ? { backgroundColor: `${preset.color}26`, color: preset.color } : undefined}
+        >
+          {member.display_name.slice(0, 1)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span
+            className="flex items-center gap-1.5 text-sm font-medium text-foreground"
+            style={preset ? { color: preset.color } : undefined}
+          >
+            {member.display_name}
+            {member.role === "owner" && <Crown className="size-3.5 text-accent" />}
+          </span>
+        </span>
+        {canRemove && (
+          <button
+            onClick={onRemove}
+            title="הסרה מהמשפחה"
+            className="rounded-md p-1.5 text-muted hover:bg-danger/10 hover:text-danger cursor-pointer"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 ps-12">
+        {ACCENT_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            title={p.name}
+            onClick={() =>
+              setColor.mutate({
+                userId: member.user_id,
+                color: member.color === p.id ? null : p.id,
+              })
+            }
+            className={cn(
+              "size-5 shrink-0 rounded-full transition-transform cursor-pointer hover:scale-110",
+              member.color === p.id && "ring-2 ring-offset-2 ring-foreground ring-offset-surface",
+            )}
+            style={{ backgroundColor: p.color }}
+          />
+        ))}
+      </div>
+    </li>
+  );
+}
+
 export default function FamilyPage() {
   const { data: userId } = useCurrentUserId();
   const { data: family, isLoading: familyLoading } = useFamily();
@@ -227,26 +300,12 @@ export default function FamilyPage() {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">בני המשפחה</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
           {(members ?? []).map((member) => (
-            <li key={member.user_id} className="flex items-center gap-3 px-4 py-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent">
-                {member.display_name.slice(0, 1)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  {member.display_name}
-                  {member.role === "owner" && <Crown className="size-3.5 text-accent" />}
-                </span>
-              </span>
-              {isOwner && member.user_id !== userId && (
-                <button
-                  onClick={() => handleRemoveMember(member.user_id)}
-                  title="הסרה מהמשפחה"
-                  className="rounded-md p-1.5 text-muted hover:bg-danger/10 hover:text-danger cursor-pointer"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              )}
-            </li>
+            <MemberRow
+              key={member.user_id}
+              member={member}
+              canRemove={isOwner && member.user_id !== userId}
+              onRemove={() => handleRemoveMember(member.user_id)}
+            />
           ))}
         </ul>
       </section>

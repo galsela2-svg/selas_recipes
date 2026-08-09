@@ -46,6 +46,13 @@ alter table public.family_members drop constraint if exists family_members_role_
 alter table public.family_members add constraint family_members_role_check
   check (role in ('owner', 'member'));
 
+-- One of the app's curated accent-preset ids (see ACCENT_PRESETS in
+-- src/lib/settings-store.ts) — null until someone picks one, in which case
+-- the UI falls back to the default accent color. Not a free-form hex value:
+-- keeping it to the same closed palette used for the app's own theming
+-- means a member's color always has a matching, tested foreground pair.
+alter table public.family_members add column if not exists color text;
+
 create index if not exists family_members_family_id_idx on public.family_members (family_id);
 
 -- The signed-in user's family, or null if they're not in one yet. security
@@ -103,6 +110,34 @@ create policy "Owners can remove other members"
       where m.user_id = auth.uid() and m.role = 'owner'
     )
   );
+
+-- Lets any family member set the display color of *any* member (not just
+-- their own) — the household is a trusted, fully co-equal group everywhere
+-- else in this schema (recipes, shopping list, known items all work the
+-- same way), and color-picking for the whole household from one screen is
+-- exactly how the settings page is meant to be used. Deliberately a
+-- separate RPC rather than broadening the "update their own display name"
+-- policy above, so that policy's self-only restriction on renaming stays
+-- intact — this only ever touches the color column.
+create or replace function public.set_member_color(target_user_id uuid, new_color text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.family_members
+    where user_id = target_user_id and family_id = public.current_family_id()
+  ) then
+    raise exception 'המשתמש אינו חבר במשפחה שלך';
+  end if;
+
+  update public.family_members set color = new_color where user_id = target_user_id;
+end;
+$$;
+
+grant execute on function public.set_member_color(uuid, text) to authenticated;
 
 -- No direct insert policy on families/family_members: membership only ever
 -- changes through create_family()/redeem_family_invite() below (both

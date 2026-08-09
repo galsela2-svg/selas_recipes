@@ -4,29 +4,9 @@ import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
-import { useRecipePhotos } from "@/lib/queries/recipe-photos";
 import { formatMinutes } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-
-function PrintRecipePhotos({ recipeId }: { recipeId: string }) {
-  const { data: photos } = useRecipePhotos(recipeId);
-  if (!photos || photos.length === 0) return null;
-
-  return (
-    <div className="mt-4 flex flex-wrap gap-2 break-inside-avoid">
-      {photos.map((photo) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={photo.id}
-          src={photo.url}
-          alt=""
-          className="size-24 rounded-lg object-cover"
-        />
-      ))}
-    </div>
-  );
-}
 
 function PrintCookbook() {
   const searchParams = useSearchParams();
@@ -135,8 +115,6 @@ function PrintCookbook() {
                   </ol>
                 </div>
               </div>
-
-              {includeImages && <PrintRecipePhotos recipeId={recipe.id} />}
             </section>
           );
         })}

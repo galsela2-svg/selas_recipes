@@ -57,6 +57,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Avoids a lone last word wrapping onto its own line — the browser
+     reflows the line break earlier instead so at least two words share
+     the final line. `text-wrap` inherits, so this covers text everywhere
+     without touching individual components. Unsupported browsers (older
+     Safari) just keep today's wrapping — no fallback needed. */
+  text-wrap: pretty;
 }
 
 * {

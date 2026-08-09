@@ -136,14 +136,6 @@ export type ParsedRecipe = {
   instructions: string[];
 };
 
-export type RecipePhoto = {
-  id: string;
-  recipe_id: string;
-  url: string;
-  taken_at: string;
-  created_by: string | null;
-};
-
 export type KnownItem = {
   name: string;
   use_count: number;
@@ -165,6 +157,7 @@ export type FamilyMember = {
   family_id: string;
   display_name: string;
   role: FamilyRole;
+  color: string | null;
   joined_at: string;
 };
 

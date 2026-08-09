@@ -131,14 +131,15 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
   return (
     <>
       <Button
-        variant="secondary"
+        variant="ghost"
+        title="שיפור מתכון עם AI"
+        aria-label="שיפור מתכון עם AI"
         onClick={() => {
           reset();
           setOpen(true);
         }}
       >
         <Sparkles className="size-4" />
-        שיפור מתכון
       </Button>
 
       <Modal

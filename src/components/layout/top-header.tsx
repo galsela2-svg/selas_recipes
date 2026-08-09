@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChefHat, ChevronRight, Settings } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
+import { useFamily } from "@/lib/queries/family";
 
 const STATIC_TITLES: Record<string, string> = {
   "/dashboard": "מתכונים",
@@ -26,11 +27,14 @@ function usePageTitle(pathname: string): string {
   const viewMatch = pathname.match(/^\/recipes\/([^/]+)$/);
   const recipeId = viewMatch && viewMatch[1] !== "new" ? viewMatch[1] : undefined;
   const { data: recipe } = useRecipe(recipeId ?? "");
+  const { data: family } = useFamily();
 
   if (editMatch) return "עריכת מתכון";
   if (recipeId) return recipe?.title ?? "מתכון";
   if (pathname.match(/^\/shared\/[^/]+$/)) return "מתכון משותף";
-  return STATIC_TITLES[pathname] ?? "מתכונים";
+
+  const base = STATIC_TITLES[pathname] ?? "מתכונים";
+  return base === "מתכונים" && family?.name ? `מתכונים - ${family.name}` : base;
 }
 
 export function TopHeader({ userEmail }: { userEmail: string | null }) {
