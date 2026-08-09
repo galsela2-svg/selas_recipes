@@ -127,14 +127,14 @@ drop policy if exists "App admin can update any member" on public.family_members
 create policy "App admin can update any member"
   on public.family_members for update
   to authenticated
-  using (auth.email() = 'galsela2@gmail.com')
-  with check (auth.email() = 'galsela2@gmail.com');
+  using ((auth.jwt() ->> 'email') = 'galsela2@gmail.com')
+  with check ((auth.jwt() ->> 'email') = 'galsela2@gmail.com');
 
 drop policy if exists "App admin can remove any member" on public.family_members;
 create policy "App admin can remove any member"
   on public.family_members for delete
   to authenticated
-  using (auth.email() = 'galsela2@gmail.com');
+  using ((auth.jwt() ->> 'email') = 'galsela2@gmail.com');
 
 -- Superseded by the RLS policies above.
 drop function if exists public.set_member_color(uuid, text);
@@ -299,7 +299,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.email() <> 'galsela2@gmail.com' then
+  if (auth.jwt() ->> 'email') <> 'galsela2@gmail.com' then
     raise exception 'אין הרשאה';
   end if;
 
