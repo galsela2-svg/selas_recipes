@@ -1,16 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
-import { DIETARY_TAG_OPTIONS, type Recipe, type RecipeInput } from "@/lib/types";
-import { useUpdateRecipe } from "@/lib/queries/recipes";
+import { DIETARY_TAG_GROUPS, DIETARY_TAG_OPTIONS, type Recipe, type RecipeInput } from "@/lib/types";
+import { useCreateRecipe, useUpdateRecipe } from "@/lib/queries/recipes";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const STYLE_PRESETS = ["בריא יותר", "ללא גלוטן", "טבעוני", "צמחוני", "דל פחמימות", "ללא מוצרי חלב"];
+// "שיפור כללי" (no specific direction — let the AI improve flavor balance,
+// clarity, and technique on its own) plus every dietary/allergen tag the
+// app already tracks elsewhere (recipe form, dashboard filters) — reusing
+// that vocabulary instead of a separate hardcoded style list keeps this
+// panel's presets and the rest of the app's dietary tags in sync.
+const STYLE_PRESETS = [
+  "שיפור כללי",
+  ...(DIETARY_TAG_GROUPS.find((g) => g.label === "תזונה ואלרגנים")?.options ?? []),
+];
 
 type UpgradeResult = {
   title: string;
@@ -26,15 +35,19 @@ type UpgradeResult = {
  * to fit it — a real rewrite, not just tips. The result is a preview the
  * user can apply (saved as an update to this same recipe) or discard. */
 export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
+  const router = useRouter();
   const updateRecipe = useUpdateRecipe();
+  const createRecipe = useCreateRecipe();
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState("");
+  const [ingredient, setIngredient] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UpgradeResult | null>(null);
 
   function reset() {
     setStyle("");
+    setIngredient("");
     setLoading(false);
     setError(null);
     setResult(null);
@@ -74,9 +87,8 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
     }
   }
 
-  function handleApply() {
-    if (!result) return;
-    const input: RecipeInput = {
+  function buildInputFromResult(result: UpgradeResult): RecipeInput {
+    return {
       title: result.title,
       description: result.description,
       image_url: recipe.image_url,
@@ -90,8 +102,12 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
       dietary_tags: Array.from(new Set([...recipe.dietary_tags, ...result.dietary_tags_add])),
       made_by_user_id: recipe.made_by_user_id,
     };
+  }
+
+  function handleApply() {
+    if (!result) return;
     updateRecipe.mutate(
-      { id: recipe.id, input },
+      { id: recipe.id, input: buildInputFromResult(result) },
       {
         onSuccess: () => {
           setOpen(false);
@@ -99,6 +115,17 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
         },
       },
     );
+  }
+
+  function handleSaveAsNew() {
+    if (!result) return;
+    createRecipe.mutate(buildInputFromResult(result), {
+      onSuccess: (newRecipe) => {
+        setOpen(false);
+        reset();
+        router.push(`/recipes/${newRecipe.id}`);
+      },
+    });
   }
 
   return (
@@ -125,7 +152,8 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
         {!result && (
           <div className="space-y-3">
             <p className="text-sm text-muted">
-              בחרו סגנון, או כתבו אחד משלכם — ה-AI ישכתב מחדש את המרכיבים וההוראות בהתאם.
+              בחרו סגנון, כתבו אחד משלכם, או בקשו לשלב מרכיב מסוים — ה-AI ישכתב מחדש את המרכיבים
+              וההוראות בהתאם.
             </p>
             <div className="flex flex-wrap gap-1.5">
               {STYLE_PRESETS.map((preset) => (
@@ -148,6 +176,27 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
               />
               <Button onClick={() => handleGenerate(style)} disabled={!style.trim() || loading} loading={loading}>
                 יצירה
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={ingredient}
+                onChange={(e) => setIngredient(e.target.value)}
+                placeholder="או שילוב מרכיב מסוים — למשל 'קינואה'"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && ingredient.trim()) {
+                    e.preventDefault();
+                    handleGenerate(`שילוב המרכיב "${ingredient.trim()}" במתכון`);
+                  }
+                }}
+              />
+              <Button
+                variant="secondary"
+                onClick={() => handleGenerate(`שילוב המרכיב "${ingredient.trim()}" במתכון`)}
+                disabled={!ingredient.trim() || loading}
+                loading={loading}
+              >
+                שילוב
               </Button>
             </div>
             {loading && (
@@ -194,12 +243,20 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
 
             {error && <p className="text-sm text-danger">{error}</p>}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="secondary" onClick={reset}>
                 ניסיון סגנון אחר
               </Button>
-              <Button onClick={handleApply} loading={updateRecipe.isPending}>
-                החלה על המתכון
+              <Button
+                variant="secondary"
+                onClick={handleSaveAsNew}
+                loading={createRecipe.isPending}
+                disabled={updateRecipe.isPending}
+              >
+                שמירה כמתכון חדש
+              </Button>
+              <Button onClick={handleApply} loading={updateRecipe.isPending} disabled={createRecipe.isPending}>
+                החלה על המתכון הנוכחי
               </Button>
             </div>
           </div>
