@@ -118,7 +118,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
 export default function AdminUsersPage() {
   const { data: email, isLoading: emailLoading } = useCurrentUserEmail();
   const { data: userId } = useCurrentUserId();
-  const { data: users, isLoading: usersLoading } = useAdminUsers();
+  const { data: users, isLoading: usersLoading, isError, error } = useAdminUsers();
 
   if (emailLoading) return <Spinner />;
 
@@ -133,6 +133,19 @@ export default function AdminUsersPage() {
   }
 
   if (usersLoading) return <Spinner />;
+
+  if (isError) {
+    return (
+      <EmptyState
+        icon={ShieldAlert}
+        title="לא הצלחנו לטעון את רשימת המשתמשים"
+        description={describeError(
+          error,
+          "ודאו שהרצתם מחדש את supabase/schema.sql — הפונקציה admin_list_users צריכה להיות מוגדרת שם.",
+        )}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
