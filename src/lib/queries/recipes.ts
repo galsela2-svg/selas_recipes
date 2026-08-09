@@ -11,16 +11,26 @@ import { createClient } from "@/lib/supabase/client";
 import type { Recipe, RecipeInput } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
 import { getCurrentFamilyId } from "@/lib/queries/family";
+import { extractProductName } from "@/lib/ingredient-product-name";
 
 // Best-effort only: this just powers ingredient autocomplete history, so a
 // failure here (network blip, RPC hiccup) must never surface as "the recipe
 // didn't save" — the recipe itself is already committed by the time this
 // runs.
+//
+// Recorded as product names, not full ingredient lines — "חצי כפית מלח"
+// becomes "מלח", so the shopping-list quick-add suggestions this feeds read
+// like products to buy, not recipe instructions. A line that isn't a
+// confident product name once its quantity/unit is stripped is skipped
+// entirely, rather than recording a guess.
 async function recordIngredientHistory(ingredients: string[]) {
-  if (ingredients.length === 0) return;
+  const names = ingredients
+    .map((i) => extractProductName(i))
+    .filter((n): n is string => Boolean(n));
+  if (names.length === 0) return;
   try {
     const supabase = createClient();
-    const { error } = await supabase.rpc("record_known_items", { item_names: ingredients });
+    const { error } = await supabase.rpc("record_known_items", { item_names: names });
     if (error) throw error;
   } catch (err) {
     console.error("record_known_items failed", err);

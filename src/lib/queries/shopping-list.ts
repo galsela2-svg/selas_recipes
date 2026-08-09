@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { ShoppingListItem } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
 import { getCurrentFamilyId } from "@/lib/queries/family";
+import { extractProductName } from "@/lib/ingredient-product-name";
 
 export const shoppingListKeys = {
   all: ["shopping-list"] as const,
@@ -78,11 +79,24 @@ export function useAddShoppingItems() {
       // Best-effort only: this just powers ingredient autocomplete history,
       // so a failure here must never surface as "adding to the list failed"
       // — the items themselves are already committed by the time this runs.
-      try {
-        const { error: rpcError } = await supabase.rpc("record_known_items", { item_names: cleaned });
-        if (rpcError) throw rpcError;
-      } catch (err) {
-        console.error("record_known_items failed", err);
+      //
+      // Recorded as product names, not whatever full text was added to the
+      // list (an "add all ingredients" button passes full recipe lines
+      // like "2 כוסות קמח") — see extractProductName. The shopping list
+      // item itself (`cleaned`, inserted above) keeps its full text
+      // unchanged; only the quick-add suggestion pool is normalized.
+      const productNames = cleaned
+        .map((n) => extractProductName(n))
+        .filter((n): n is string => Boolean(n));
+      if (productNames.length > 0) {
+        try {
+          const { error: rpcError } = await supabase.rpc("record_known_items", {
+            item_names: productNames,
+          });
+          if (rpcError) throw rpcError;
+        } catch (err) {
+          console.error("record_known_items failed", err);
+        }
       }
     },
     onSuccess: () => {
