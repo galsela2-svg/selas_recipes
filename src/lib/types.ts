@@ -79,9 +79,6 @@ export const DIETARY_TAG_GROUPS: { label: string; options: string[] }[] = [
 
 export const DIETARY_TAG_OPTIONS = DIETARY_TAG_GROUPS.flatMap((g) => g.options);
 
-export const RECIPE_OWNERS = ["ניבה", "גל", "משותף"] as const;
-export type RecipeOwner = (typeof RECIPE_OWNERS)[number];
-
 export type Recipe = {
   id: string;
   title: string;
@@ -96,7 +93,7 @@ export type Recipe = {
   tags: string[];
   dietary_tags: string[];
   is_favorite: boolean;
-  made_by: RecipeOwner | null;
+  made_by_user_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -114,7 +111,7 @@ export type RecipeInput = {
   instructions: string[];
   tags: string[];
   dietary_tags: string[];
-  made_by: RecipeOwner | null;
+  made_by_user_id: string | null;
 };
 
 export type ShoppingListItem = {
@@ -152,4 +149,46 @@ export type KnownItem = {
   use_count: number;
   pinned: boolean;
   updated_at: string;
+};
+
+export type Family = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type FamilyRole = "owner" | "member";
+
+export type FamilyMember = {
+  user_id: string;
+  family_id: string;
+  display_name: string;
+  role: FamilyRole;
+  joined_at: string;
+};
+
+export type FamilyInvite = {
+  id: string;
+  family_id: string;
+  token: string;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string;
+  used_by: string | null;
+  used_at: string | null;
+};
+
+export type InvitePreview = {
+  family_name: string;
+  is_valid: boolean;
+};
+
+export type RecipeShare = {
+  id: string;
+  recipe_id: string;
+  token: string;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string;
 };

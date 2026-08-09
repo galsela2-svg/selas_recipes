@@ -13,6 +13,7 @@ import {
   Moon,
   ShoppingCart,
   Sun,
+  Users,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -253,6 +254,7 @@ export default function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="עוד באפליקציה">
+        <LinkRow href="/family" label="המשפחה שלי" icon={Users} />
         <LinkRow href="/shopping-list" label="רשימת קניות ופריטים נפוצים" icon={ShoppingCart} />
         <LinkRow href="/export" label="ייצוא, גיבוי וספר מתכונים" icon={BookOpen} />
       </SettingsSection>

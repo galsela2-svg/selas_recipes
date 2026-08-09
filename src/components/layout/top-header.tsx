@@ -11,6 +11,7 @@ const STATIC_TITLES: Record<string, string> = {
   "/shopping-list": "רשימת קניות",
   "/settings": "הגדרות",
   "/export": "ייצוא לספר מתכונים",
+  "/family": "המשפחה שלי",
 };
 
 // The three bottom-tab destinations — everything else is a page you
@@ -28,6 +29,7 @@ function usePageTitle(pathname: string): string {
 
   if (editMatch) return "עריכת מתכון";
   if (recipeId) return recipe?.title ?? "מתכון";
+  if (pathname.match(/^\/shared\/[^/]+$/)) return "מתכון משותף";
   return STATIC_TITLES[pathname] ?? "מתכונים";
 }
 
