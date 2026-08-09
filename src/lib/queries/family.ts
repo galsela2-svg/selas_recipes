@@ -18,6 +18,18 @@ async function fetchMyFamily(): Promise<Family | null> {
   return data as Family | null;
 }
 
+/** Every insert into a family-scoped table (recipes, shopping list items,
+ * recipe photos, known items) needs to stamp its row with the caller's
+ * family_id — there's no database-side default for it. Shared here so each
+ * of those mutations doesn't re-derive it separately. */
+export async function getCurrentFamilyId(
+  supabase: ReturnType<typeof createClient>,
+): Promise<string> {
+  const { data, error } = await supabase.from("families").select("id").single();
+  if (error) throw error;
+  return data.id as string;
+}
+
 export function useFamily() {
   return useQuery({ queryKey: familyKeys.mine, queryFn: fetchMyFamily });
 }

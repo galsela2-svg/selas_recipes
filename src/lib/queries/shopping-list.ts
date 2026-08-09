@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { ShoppingListItem } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
+import { getCurrentFamilyId } from "@/lib/queries/family";
 
 export const shoppingListKeys = {
   all: ["shopping-list"] as const,
@@ -61,11 +62,13 @@ export function useAddShoppingItems() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      const familyId = await getCurrentFamilyId(supabase);
 
       const { error } = await supabase.from("shopping_list_items").insert(
         cleaned.map((name) => ({
           name,
           recipe_id: recipeId ?? null,
+          family_id: familyId,
           created_by: user?.id ?? null,
         })),
       );

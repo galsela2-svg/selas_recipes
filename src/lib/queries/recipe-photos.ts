@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { RecipePhoto } from "@/lib/types";
+import { getCurrentFamilyId } from "@/lib/queries/family";
 
 const BUCKET = "recipe-photos";
 
@@ -67,10 +68,11 @@ export function useAddRecipePhoto() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      const familyId = await getCurrentFamilyId(supabase);
 
       const { error: insertError } = await supabase
         .from("recipe_photos")
-        .insert({ recipe_id: recipeId, url: publicUrl, created_by: user?.id ?? null });
+        .insert({ recipe_id: recipeId, url: publicUrl, family_id: familyId, created_by: user?.id ?? null });
       if (insertError) throw insertError;
 
       return publicUrl;
