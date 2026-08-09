@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { Recipe, RecipeInput } from "@/lib/types";
 import { knownItemKeys } from "@/lib/queries/known-items";
+import { getCurrentFamilyId } from "@/lib/queries/family";
 
 // Best-effort only: this just powers ingredient autocomplete history, so a
 // failure here (network blip, RPC hiccup) must never surface as "the recipe
@@ -75,10 +76,11 @@ export function useCreateRecipe() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      const familyId = await getCurrentFamilyId(supabase);
 
       const { data, error } = await supabase
         .from("recipes")
-        .insert({ ...input, created_by: user?.id ?? null })
+        .insert({ ...input, family_id: familyId, created_by: user?.id ?? null })
         .select()
         .single();
 

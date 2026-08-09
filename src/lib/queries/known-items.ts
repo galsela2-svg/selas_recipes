@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { KnownItem } from "@/lib/types";
+import { getCurrentFamilyId } from "@/lib/queries/family";
 
 export const knownItemKeys = {
   all: ["known-items"] as const,
@@ -97,11 +98,12 @@ export function useAddKnownItem() {
       if (!trimmed) return;
 
       const supabase = createClient();
+      const familyId = await getCurrentFamilyId(supabase);
       const { error } = await supabase
         .from("known_items")
         .upsert(
-          { name: trimmed, pinned, use_count: 1, updated_at: new Date().toISOString() },
-          { onConflict: "name" },
+          { family_id: familyId, name: trimmed, pinned, use_count: 1, updated_at: new Date().toISOString() },
+          { onConflict: "family_id,name" },
         );
       if (error) throw error;
     },
