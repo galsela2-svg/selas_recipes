@@ -55,7 +55,7 @@ export function TopHeader({ userEmail }: { userEmail: string | null }) {
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur"
+      className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur"
       style={{
         paddingTop: "env(safe-area-inset-top)",
         height: "calc(3.5rem + env(safe-area-inset-top))",
