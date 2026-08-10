@@ -40,26 +40,38 @@ function SectionPanel({
         <span className="truncate">{label}</span>
         <ChevronLeft className="size-4 shrink-0 text-muted" />
       </Link>
-      {/* grid-template-rows is sized to the actual row count (capped at 3),
-          not a fixed grid-rows-3 — an empty row from minmax(0,1fr) still
-          claims a full row's height on an auto-height grid, so without this
-          a category with 1-2 recipes would leave dead white space instead
-          of the panel shrinking to fit them. */}
+      {/* Explicitly placed, not grid-auto-flow: recipes fill row by row (1,2,3
+          on top, 4 starts the row below it) three at a time, and once a 3x3
+          "page" is full the next one starts in the three columns beside it
+          — grid-auto-flow can only overflow along a single axis (more rows
+          *or* more columns), never "row-major within a capped height", so
+          each card's row/column is computed here instead. Row count is
+          capped at 3 and otherwise sized to what's actually needed, so a
+          panel with only 1-2 rows worth of recipes shrinks instead of
+          leaving dead space. */}
       <div
-        className="grid grid-flow-col auto-cols-[31%] gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:auto-cols-[23%] lg:auto-cols-[18%]"
-        style={{ gridTemplateRows: `repeat(${Math.min(3, recipes.length)}, minmax(0, 1fr))` }}
+        className="grid auto-cols-[31%] gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:auto-cols-[23%] lg:auto-cols-[18%]"
+        style={{
+          gridTemplateRows: `repeat(${Math.min(3, Math.ceil(recipes.length / 3))}, minmax(0, 1fr))`,
+        }}
       >
-        {recipes.map((recipe) => (
-          <div key={recipe.id} className="snap-start">
-            <RecipeCard
-              recipe={recipe}
-              selectable={selectable}
-              selected={selectedIds?.has(recipe.id)}
-              onToggleSelect={() => onToggleSelect?.(recipe.id)}
-              highlighted={recipe.id === highlightedId}
-            />
-          </div>
-        ))}
+        {recipes.map((recipe, i) => {
+          const page = Math.floor(i / 9);
+          const posInPage = i % 9;
+          const row = Math.floor(posInPage / 3) + 1;
+          const column = page * 3 + (posInPage % 3) + 1;
+          return (
+            <div key={recipe.id} className="snap-start" style={{ gridRow: row, gridColumn: column }}>
+              <RecipeCard
+                recipe={recipe}
+                selectable={selectable}
+                selected={selectedIds?.has(recipe.id)}
+                onToggleSelect={() => onToggleSelect?.(recipe.id)}
+                highlighted={recipe.id === highlightedId}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
