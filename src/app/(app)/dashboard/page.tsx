@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, Heart, ListPlus, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
+import { ChevronDown, Heart, ListPlus, Pencil, Search, Tag, Trash2, Users, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
 import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
 import { DIETARY_TAG_GROUPS } from "@/lib/types";
@@ -122,36 +122,57 @@ export default function DashboardPage() {
     });
   }, [recipes, search, favoritesOnly, ownerFilter, selectedDietary]);
 
-  const isBrowsingUnfiltered =
-    !search.trim() && !favoritesOnly && !ownerFilter && selectedDietary.length === 0;
+  // Owner filtering ("המתכונים של גל") still browses by category shelves
+  // underneath — only a text search, favorites, or a dietary tag switches
+  // to the flat "N matches" list, since those are actual search results
+  // rather than just narrowing who you're browsing.
+  const isBrowsingUnfiltered = !search.trim() && !favoritesOnly && selectedDietary.length === 0;
+  const ownerName = ownerFilter
+    ? (familyMembers?.find((m) => m.user_id === ownerFilter)?.display_name ?? null)
+    : null;
 
   return (
     <div className="space-y-6">
       {familyMembers && familyMembers.length > 1 && (
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <button
             onClick={() => setOwnerFilter(null)}
             className={cn(
-              "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-              ownerFilter === null ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground",
+              "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all cursor-pointer",
+              ownerFilter === null
+                ? "border-accent bg-accent text-accent-foreground shadow-sm"
+                : "border-border bg-surface text-muted hover:border-accent/40 hover:text-foreground",
             )}
           >
+            <Users className="size-3.5" />
             הכול
           </button>
           {familyMembers.map((member) => {
             const active = ownerFilter === member.user_id;
             const preset = getMemberColorPreset(member.color);
+            const color = preset?.color ?? "var(--accent)";
+            const foreground = preset?.foreground ?? "var(--accent-foreground)";
             return (
               <button
                 key={member.user_id}
                 onClick={() => setOwnerFilter(active ? null : member.user_id)}
                 className={cn(
-                  "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
-                  active && !preset && "bg-accent/15 text-accent",
-                  !active && "text-muted hover:text-foreground",
+                  "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
+                  active
+                    ? "shadow-sm"
+                    : "border-border bg-surface text-muted hover:border-accent/40 hover:text-foreground",
                 )}
-                style={active && preset ? { backgroundColor: `${preset.color}26`, color: preset.color } : undefined}
+                style={active ? { borderColor: color, backgroundColor: color, color: foreground } : undefined}
               >
+                <span
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{
+                    backgroundColor: active ? "rgba(255,255,255,0.28)" : `${color}26`,
+                    color: active ? foreground : color,
+                  }}
+                >
+                  {member.display_name.slice(0, 1)}
+                </span>
                 {member.display_name}
               </button>
             );
@@ -236,7 +257,11 @@ export default function DashboardPage() {
           {!isLoading && filtered.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="font-serif text-lg font-bold text-foreground">
-                {isBrowsingUnfiltered ? "כל המתכונים" : `${filtered.length} התאמות`}
+                {!isBrowsingUnfiltered
+                  ? `${filtered.length} התאמות`
+                  : ownerName
+                    ? `המתכונים של ${ownerName}`
+                    : "כל המתכונים"}
               </p>
               <button
                 onClick={toggleSelectionMode}
