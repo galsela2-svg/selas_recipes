@@ -2,7 +2,7 @@
 
 :root {
   /* Light theme (default/fallback before the theme script runs). */
-  --background: #f5ede4;
+  --background: #faf5ee;
   --surface: #ffffff;
   --surface-2: #f1efe9;
   --category-panel: #ffffff;
@@ -17,7 +17,7 @@
 }
 
 :root.dark {
-  --background: #1c1815;
+  --background: #16130f;
   --surface: #111318;
   --surface-2: #171a20;
   --category-panel: #0b0c0e;
@@ -30,7 +30,7 @@
 }
 
 :root.light {
-  --background: #f5ede4;
+  --background: #faf5ee;
   --surface: #ffffff;
   --surface-2: #f1efe9;
   --category-panel: #ffffff;

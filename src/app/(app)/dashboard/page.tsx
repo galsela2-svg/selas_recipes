@@ -192,7 +192,7 @@ export default function DashboardPage() {
                 "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
                 favoritesOnly
                   ? "border-danger bg-danger/15 text-danger"
-                  : "border-border text-muted hover:bg-surface-2",
+                  : "border-border bg-surface text-muted hover:bg-surface-2",
               )}
             >
               <Heart className={cn("size-4", favoritesOnly && "fill-danger")} />
@@ -204,10 +204,15 @@ export default function DashboardPage() {
                 "relative flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
                 showCategoryTiles || selectedDietary.length > 0
                   ? "border-accent bg-accent/15 text-accent"
-                  : "border-border text-muted hover:bg-surface-2",
+                  : "border-border bg-surface text-muted hover:bg-surface-2",
               )}
             >
-              <Tag className="size-4" />
+              <Tag
+                className={cn(
+                  "size-4",
+                  (showCategoryTiles || selectedDietary.length > 0) && "fill-white",
+                )}
+              />
               {selectedDietary.length > 0 && (
                 <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
                   {selectedDietary.length}
@@ -264,7 +269,7 @@ export default function DashboardPage() {
                     : "border-border text-muted hover:bg-surface-2",
                 )}
               >
-                <Pencil className="size-3.5" />
+                <Pencil className={cn("size-3.5", selectionMode && "fill-white")} />
               </button>
             </div>
           )}
