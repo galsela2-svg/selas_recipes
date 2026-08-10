@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ChevronLeft, type LucideIcon } from "lucide-react";
 import { RecipeCard } from "@/components/recipes/recipe-card";
@@ -9,6 +9,7 @@ import { getDashboardCategories } from "@/lib/settings-store";
 import { getCategoryIcon } from "@/lib/quick-filter-tiles";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
 import { shuffleWithSeed } from "@/lib/shuffle";
+import { cn } from "@/lib/utils";
 import type { Recipe } from "@/lib/types";
 
 /** Pinned recipes always lead a category shelf; everything else shuffles
@@ -48,6 +49,24 @@ function SectionPanel({
   onToggleSelect?: (id: string) => void;
   highlightedId?: string | null;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activePage, setActivePage] = useState(0);
+  // Each "page" is one 3x3 block of up to 9 recipes (see the column math
+  // below) — matches how many horizontal scroll stops the shelf actually
+  // has, regardless of how many recipes are in it.
+  const pageCount = Math.ceil(recipes.length / 9);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el || pageCount <= 1) return;
+    const pageWidth = el.scrollWidth / pageCount;
+    // scrollLeft in RTL containers goes from ~0 (start) to NEGATIVE as later
+    // pages scroll into view (the modern spec-compliant behavior), so the
+    // page math needs the absolute value regardless of scroll direction.
+    const page = Math.round(Math.abs(el.scrollLeft) / pageWidth);
+    setActivePage(Math.min(pageCount - 1, Math.max(0, page)));
+  }
+
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-category-panel p-3">
       <Link
@@ -68,6 +87,8 @@ function SectionPanel({
           panel with only 1-2 rows worth of recipes shrinks instead of
           leaving dead space. */}
       <div
+        ref={scrollRef}
+        onScroll={handleScroll}
         className="grid auto-cols-[31%] gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:auto-cols-[23%] lg:auto-cols-[18%]"
         style={{
           gridTemplateRows: `repeat(${Math.min(3, Math.ceil(recipes.length / 3))}, minmax(0, 1fr))`,
@@ -91,6 +112,21 @@ function SectionPanel({
           );
         })}
       </div>
+      {/* Minimal scroll-position indicator — only shown when there's
+          actually more than one horizontal "page" to scroll through. */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-1">
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "h-1 rounded-full transition-all",
+                i === activePage ? "w-4 bg-accent" : "w-1.5 bg-border",
+              )}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
