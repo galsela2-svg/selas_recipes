@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ChevronLeft, Tag, type LucideIcon } from "lucide-react";
+import { BookOpen, ChevronLeft, type LucideIcon } from "lucide-react";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { useSettings } from "@/components/providers/settings-provider";
+import { getCategoryIcon } from "@/lib/quick-filter-tiles";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
 import type { Recipe } from "@/lib/types";
 
@@ -115,7 +116,7 @@ export function CategorizedRecipeGrid({
         <SectionPanel
           key={section.tag}
           href={`/dashboard/category/${encodeURIComponent(section.tag)}`}
-          icon={Tag}
+          icon={getCategoryIcon(section.tag)}
           label={section.tag}
           recipes={section.recipes}
           selectable={selectable}

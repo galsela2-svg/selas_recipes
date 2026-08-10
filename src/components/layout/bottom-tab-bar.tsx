@@ -10,8 +10,8 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface pb-[max(env(safe-area-inset-bottom),0.5rem)]"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.875rem)" }}
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around">
         {navLinks.map((link) => {

@@ -157,22 +157,13 @@ export default function DashboardPage() {
                 key={member.user_id}
                 onClick={() => setOwnerFilter(active ? null : member.user_id)}
                 className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
+                  "flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all cursor-pointer",
                   active
                     ? "shadow-sm"
                     : "border-border bg-surface text-muted hover:border-accent/40 hover:text-foreground",
                 )}
                 style={active ? { borderColor: color, backgroundColor: color, color: foreground } : undefined}
               >
-                <span
-                  className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                  style={{
-                    backgroundColor: active ? "rgba(255,255,255,0.28)" : `${color}26`,
-                    color: active ? foreground : color,
-                  }}
-                >
-                  {member.display_name.slice(0, 1)}
-                </span>
                 {member.display_name}
               </button>
             );

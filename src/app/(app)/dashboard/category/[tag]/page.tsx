@@ -1,13 +1,14 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
-import { ArrowUpDown, BookOpen, Search, Tag as TagIcon } from "lucide-react";
+import { ArrowUpDown, BookOpen, Search } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
 import { useSettings } from "@/components/providers/settings-provider";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getCategoryIcon } from "@/lib/quick-filter-tiles";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
 import { cn } from "@/lib/utils";
 import type { Recipe } from "@/lib/types";
@@ -98,11 +99,16 @@ export default function CategoryPage({ params }: { params: Promise<{ tag: string
 
   if (isLoading) return <Spinner />;
 
-  const Icon = isOther ? BookOpen : TagIcon;
+  const Icon = isOther ? BookOpen : getCategoryIcon(tag);
 
   return (
     <div className="space-y-4">
       <p className="flex items-center gap-1.5 font-serif text-xl font-bold text-foreground">
+        {/* getCategoryIcon always resolves to one of a fixed set of
+            already-defined icon components (a lookup, never a fresh
+            component definition), so this doesn't have the state-reset
+            hazard the lint rule guards against. */}
+        {/* eslint-disable-next-line react-hooks/static-components */}
         <Icon className="size-5 shrink-0 text-accent" />
         {label}
       </p>
