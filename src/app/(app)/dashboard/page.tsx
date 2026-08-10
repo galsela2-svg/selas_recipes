@@ -182,7 +182,7 @@ export default function DashboardPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="חיפוש לפי שם, קטגוריה או מרכיב..."
-                className="ps-9"
+                className="ps-9 placeholder:text-sm"
               />
             </div>
             <button
