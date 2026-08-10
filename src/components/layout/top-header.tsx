@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChefHat, ChevronRight, Settings } from "lucide-react";
+import { ChevronRight, Settings } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useFamily } from "@/lib/queries/family";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
@@ -62,7 +63,7 @@ export function TopHeader({ userEmail }: { userEmail: string | null }) {
     >
       <div className="flex min-w-0 items-center gap-1.5">
         {isRoot ? (
-          <ChefHat className="size-4.5 shrink-0 text-accent" strokeWidth={1.75} />
+          <Image src="/logo.png" alt="" width={160} height={160} className="size-7 shrink-0" priority />
         ) : (
           <button
             onClick={() => router.back()}
