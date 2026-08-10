@@ -1,10 +1,10 @@
-import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function Spinner({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center justify-center py-12", className)}>
-      <Loader2 className="size-6 animate-spin text-muted" />
+    <div className={cn("flex min-h-[60vh] items-center justify-center", className)}>
+      <Image src="/logo.png" alt="" width={64} height={64} className="size-16 animate-spin" priority />
     </div>
   );
 }
