@@ -113,6 +113,17 @@ function iconFor(tag: string): LucideIcon {
   return EXTRA_ICONS[tag] ?? Tag;
 }
 
+const CATEGORY_TILE_ICON_BY_TAG = new Map(CATEGORY_TILES.map((t) => [t.tag, t.icon]));
+
+/** Same curated icon a tag gets as a quick-filter tile (CATEGORY_TILES,
+ * then EXTRA_ICONS), for anywhere else in the app that shows a tag with an
+ * icon — e.g. the dashboard's per-category shelves — so a category doesn't
+ * get a different, unrelated icon than its own filter tile. Falls back to
+ * a plain tag icon for anything not covered by either list. */
+export function getCategoryIcon(tag: string): LucideIcon {
+  return CATEGORY_TILE_ICON_BY_TAG.get(tag) ?? EXTRA_ICONS[tag] ?? Tag;
+}
+
 const curatedKeys = new Set(CATEGORY_TILES.map((t) => `${t.group}:${t.tag}`));
 
 // Every tile a user could possibly add: the curated set above, plus one
