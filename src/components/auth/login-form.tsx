@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChefHat } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,9 +42,7 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <ChefHat className="size-6" />
-        </div>
+        <Image src="/logo.png" alt="" width={48} height={48} className="size-12" />
         <h1 className="text-xl font-semibold text-foreground">ברוכים השבים</h1>
         <p className="text-sm text-muted">התחברו לספר המתכונים המשותף שלכם</p>
       </div>
@@ -87,6 +86,13 @@ export function LoginForm() {
           התחברות
         </Button>
       </form>
+
+      <p className="mt-4 text-center text-sm text-muted">
+        אין לכם חשבון?{" "}
+        <Link href="/join" className="font-medium text-accent hover:underline">
+          הרשמה
+        </Link>
+      </p>
     </div>
   );
 }

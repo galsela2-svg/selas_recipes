@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import {
-  applyThemeAndAccent,
+  applyTheme,
   getSettings,
   setSetting,
   subscribeSettings,
@@ -21,15 +21,15 @@ export function useSettings(): [AppSettings, typeof setSetting] {
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings] = useSettings();
 
-  // Keep the theme in sync with OS changes when "system" is selected, and
-  // apply the accent color on mount (the blocking init script only handles
-  // the theme class, to keep it tiny).
+  // Keep the theme in sync with OS changes when "system" is selected (the
+  // blocking init script only handles the initial theme class, to keep it
+  // tiny).
   useEffect(() => {
-    applyThemeAndAccent(settings);
+    applyTheme(settings);
 
     if (settings.theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyThemeAndAccent(getSettings());
+    const onChange = () => applyTheme(getSettings());
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, [settings]);

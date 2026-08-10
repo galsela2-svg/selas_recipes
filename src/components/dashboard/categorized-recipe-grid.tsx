@@ -73,7 +73,7 @@ function SectionPanel({
         href={href}
         className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground hover:text-accent"
       >
-        <Icon className="size-5 shrink-0 text-accent" />
+        <Icon className="size-5 shrink-0 text-muted" />
         <span className="truncate">{label}</span>
         <ChevronLeft className="size-4 shrink-0 text-muted" />
       </Link>

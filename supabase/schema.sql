@@ -46,12 +46,9 @@ alter table public.family_members drop constraint if exists family_members_role_
 alter table public.family_members add constraint family_members_role_check
   check (role in ('owner', 'member'));
 
--- One of the app's curated accent-preset ids (see ACCENT_PRESETS in
--- src/lib/settings-store.ts) — null until someone picks one, in which case
--- the UI falls back to the default accent color. Not a free-form hex value:
--- keeping it to the same closed palette used for the app's own theming
--- means a member's color always has a matching, tested foreground pair.
-alter table public.family_members add column if not exists color text;
+-- Per-member color customization was removed in favor of one uniform app
+-- accent color for everyone — the column is no longer read or written.
+alter table public.family_members drop column if exists color;
 
 create index if not exists family_members_family_id_idx on public.family_members (family_id);
 
@@ -92,7 +89,7 @@ create policy "Members can read their family's members"
   using (family_id = public.current_family_id());
 
 -- Plain RLS, not a security-definer RPC: any member can update any other
--- member's row in their own family (name or color) — the household is a
+-- member's row in their own family (e.g. their display name) — the household is a
 -- trusted, fully co-equal group everywhere else in this schema (recipes,
 -- shopping list, known items all work the same way), and this is the exact
 -- same mechanism those already use, rather than a separate function whose

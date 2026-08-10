@@ -27,7 +27,7 @@ import {
   useTogglePinned,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
-import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
+import { useFamilyMembers } from "@/lib/queries/family";
 import type { Recipe } from "@/lib/types";
 import { useAddShoppingItems } from "@/lib/queries/shopping-list";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -60,7 +60,6 @@ export default function RecipeDetailPage({
   const { data: recipe, isLoading } = useRecipe(id);
   const { data: familyMembers } = useFamilyMembers();
   const madeByMember = familyMembers?.find((m) => m.user_id === recipe?.made_by_user_id);
-  const madeByColor = getMemberColorPreset(madeByMember?.color)?.color;
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
@@ -209,10 +208,7 @@ export default function RecipeDetailPage({
         </div>
 
         {madeByMember && (
-          <span
-            className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm"
-            style={madeByColor ? { color: madeByColor } : undefined}
-          >
+          <span className="absolute start-3 top-3 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
             {madeByMember.display_name}
           </span>
         )}
