@@ -2,10 +2,10 @@
 
 :root {
   /* Light theme (default/fallback before the theme script runs). */
-  --background: #faf8f5;
+  --background: #f5ede4;
   --surface: #ffffff;
   --surface-2: #f1efe9;
-  --category-panel: #f5ede4;
+  --category-panel: #ffffff;
   --border: #e6e2da;
   --foreground: #1d1b17;
   --muted: #706a60;
@@ -17,10 +17,10 @@
 }
 
 :root.dark {
-  --background: #0b0c0e;
+  --background: #1c1815;
   --surface: #111318;
   --surface-2: #171a20;
-  --category-panel: #1c1815;
+  --category-panel: #0b0c0e;
   --border: #23262e;
   --foreground: #e9eaec;
   --muted: #9296a1;
@@ -30,10 +30,10 @@
 }
 
 :root.light {
-  --background: #faf8f5;
+  --background: #f5ede4;
   --surface: #ffffff;
   --surface-2: #f1efe9;
-  --category-panel: #f5ede4;
+  --category-panel: #ffffff;
   --border: #e6e2da;
   --foreground: #1d1b17;
   --muted: #706a60;
