@@ -1,12 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, ChevronLeft, type LucideIcon } from "lucide-react";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { useSettings } from "@/components/providers/settings-provider";
+import { getDashboardCategories } from "@/lib/settings-store";
 import { getCategoryIcon } from "@/lib/quick-filter-tiles";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
+import { shuffleWithSeed } from "@/lib/shuffle";
 import type { Recipe } from "@/lib/types";
+
+/** Pinned recipes always lead a category shelf; everything else shuffles
+ * into a different order each time the dashboard is opened (seed is
+ * captured once per mount, so the order stays put while you're browsing
+ * instead of jittering on every re-render). */
+function orderRecipes(recipes: Recipe[], seed: number): Recipe[] {
+  const pinned = recipes.filter((r) => r.is_pinned);
+  const rest = shuffleWithSeed(
+    recipes.filter((r) => !r.is_pinned),
+    (r) => r.id,
+    seed,
+  );
+  return [...pinned, ...rest];
+}
 
 /** One category "shelf": a heading that links to the full category page,
  * and a horizontally-scrolling 3-row grid (roughly 9 recipes visible at
@@ -83,31 +100,56 @@ function SectionPanel({
  * contents — grouped into chapters (a recipe tagged for more than one
  * category shows up in each) instead of one long undifferentiated grid.
  * Which categories show, and in what order, is a per-device preference set
- * in Settings → קטגוריות בעמוד הראשי. Anything not in any of them still
- * shows up, under "מתכונים נוספים".
+ * in Settings → קטגוריות בעמוד הראשי — scoped per dashboard owner-filter
+ * (scopeKey), so "הכול" and each family member keep their own separate
+ * category order. Anything not in any of them still shows up, under
+ * "מתכונים נוספים". Within each shelf, pinned recipes lead and the rest
+ * are shuffled fresh for this visit.
  */
 export function CategorizedRecipeGrid({
   recipes,
+  scopeKey,
   selectedIds,
   onToggleSelect,
   highlightedId,
 }: {
   recipes: Recipe[];
+  scopeKey: string;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   highlightedId?: string | null;
 }) {
   const [settings] = useSettings();
+  // Starts at a fixed seed so the server-rendered order and the client's
+  // first hydration pass match exactly (Math.random() would differ between
+  // the two and React would flag a hydration mismatch); a real random seed
+  // is rolled right after mount, which is what actually makes the order
+  // fresh "every time you enter the screen" — that swap happens client-side
+  // only, invisibly, before the user has had a chance to look at the order.
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  useEffect(() => {
+    // Intentionally a plain setState-on-mount, not a subscription to some
+    // external system — there's no store to subscribe to here, just a
+    // client-only random value that must not run during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShuffleSeed(Math.random());
+  }, []);
 
-  const sections = settings.dashboardCategoryTags
+  const sections = getDashboardCategories(settings, scopeKey)
     .map((tag) => ({
       tag,
-      recipes: recipes.filter((r) => r.dietary_tags.includes(tag)),
+      recipes: orderRecipes(
+        recipes.filter((r) => r.dietary_tags.includes(tag)),
+        shuffleSeed,
+      ),
     }))
     .filter((section) => section.recipes.length > 0);
 
   const categorizedIds = new Set(sections.flatMap((s) => s.recipes.map((r) => r.id)));
-  const rest = recipes.filter((r) => !categorizedIds.has(r.id));
+  const rest = orderRecipes(
+    recipes.filter((r) => !categorizedIds.has(r.id)),
+    shuffleSeed,
+  );
   const selectable = Boolean(selectedIds);
 
   return (

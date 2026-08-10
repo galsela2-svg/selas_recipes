@@ -19,6 +19,12 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   { id: "green", name: "ירוק", color: "#5bb85c", foreground: "#06170a" },
 ];
 
+// The dashboard's owner-filter row ("הכול" / a specific member) each get
+// their own independent category order — "all" is the scope key for the
+// unfiltered view; a family member's user_id is the scope key for their
+// filtered view.
+export const DASHBOARD_ALL_SCOPE = "all";
+
 export type AppSettings = {
   theme: ThemeMode;
   accentId: string;
@@ -27,9 +33,11 @@ export type AppSettings = {
   timerSoundEnabled: boolean;
   quickFilterTileKeys: string[];
   // Ordered list of dietary_tags shown as their own section (heading + up
-  // to 9 recipes, scrollable for more) on the main recipes page — a
-  // per-device preference, same as quickFilterTileKeys above.
-  dashboardCategoryTags: string[];
+  // to 9 recipes, scrollable for more) on the main recipes page, keyed by
+  // dashboard owner-filter scope (DASHBOARD_ALL_SCOPE or a member's
+  // user_id) so "הכול" and each family member keep their own separate
+  // order — a per-device preference, same as quickFilterTileKeys above.
+  dashboardCategoryTagsByOwner: Record<string, string[]>;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -37,10 +45,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   accentId: "rose",
   defaultUnitSystem: "metric",
   quickFilterTileKeys: DEFAULT_TILE_KEYS,
-  dashboardCategoryTags: DEFAULT_DASHBOARD_CATEGORIES,
+  dashboardCategoryTagsByOwner: {},
   keepScreenAwake: true,
   timerSoundEnabled: true,
 };
+
+/** The category order for a given dashboard scope, falling back to the
+ * shared defaults the first time that scope is viewed. */
+export function getDashboardCategories(settings: AppSettings, scopeKey: string): string[] {
+  return settings.dashboardCategoryTagsByOwner[scopeKey] ?? DEFAULT_DASHBOARD_CATEGORIES;
+}
 
 export const SETTINGS_STORAGE_KEY = "recipe-app:settings";
 
@@ -49,7 +63,17 @@ function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) };
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & { dashboardCategoryTags?: string[] };
+    const merged = { ...DEFAULT_SETTINGS, ...parsed };
+    // One-time migration from the old single, unscoped category list (before
+    // "הכול" and each family member had their own order) into the "all" scope.
+    if (parsed.dashboardCategoryTags && !parsed.dashboardCategoryTagsByOwner) {
+      merged.dashboardCategoryTagsByOwner = {
+        ...merged.dashboardCategoryTagsByOwner,
+        [DASHBOARD_ALL_SCOPE]: parsed.dashboardCategoryTags,
+      };
+    }
+    return merged;
   } catch {
     return DEFAULT_SETTINGS;
   }

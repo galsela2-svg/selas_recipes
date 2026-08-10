@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronRight, Settings } from "lucide-react";
 import { useRecipe } from "@/lib/queries/recipes";
 import { useFamily } from "@/lib/queries/family";
+import { OwnerFilterPicker } from "@/components/layout/owner-filter-picker";
 import { OTHER_CATEGORY_SLUG } from "@/lib/meal-type-sections";
 
 const STATIC_TITLES: Record<string, string> = {
@@ -76,13 +77,16 @@ export function TopHeader({ userEmail }: { userEmail: string | null }) {
         <span className="truncate font-serif text-lg font-bold text-foreground">{title}</span>
       </div>
 
-      <Link
-        href="/settings"
-        title={userEmail ?? "הגדרות"}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-      >
-        <Settings className="size-4.5" />
-      </Link>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {pathname === "/dashboard" && <OwnerFilterPicker />}
+        <Link
+          href="/settings"
+          title={userEmail ?? "הגדרות"}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
+          <Settings className="size-4.5" />
+        </Link>
+      </div>
     </header>
   );
 }

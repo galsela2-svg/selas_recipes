@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSettings } from "@/components/providers/settings-provider";
-import { ACCENT_PRESETS, type ThemeMode } from "@/lib/settings-store";
+import { ACCENT_PRESETS, DASHBOARD_ALL_SCOPE, type ThemeMode } from "@/lib/settings-store";
+import { useFamilyMembers } from "@/lib/queries/family";
 import { DashboardCategoriesEditor } from "@/components/dashboard/dashboard-categories-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,6 +154,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const [settings, setSetting] = useSettings();
   const [email, setEmail] = useState<string | null>(null);
+  const { data: familyMembers } = useFamilyMembers();
+  const [categoryScope, setCategoryScope] = useState<string>(DASHBOARD_ALL_SCOPE);
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -314,7 +317,36 @@ export default function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="קטגוריות בעמוד הראשי">
-        <DashboardCategoriesEditor />
+        {familyMembers && familyMembers.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1">
+            <button
+              onClick={() => setCategoryScope(DASHBOARD_ALL_SCOPE)}
+              className={cn(
+                "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                categoryScope === DASHBOARD_ALL_SCOPE
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              הכול
+            </button>
+            {familyMembers.map((member) => (
+              <button
+                key={member.user_id}
+                onClick={() => setCategoryScope(member.user_id)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors",
+                  categoryScope === member.user_id
+                    ? "bg-accent/15 text-accent"
+                    : "text-muted hover:text-foreground",
+                )}
+              >
+                {member.display_name}
+              </button>
+            ))}
+          </div>
+        )}
+        <DashboardCategoriesEditor scopeKey={categoryScope} />
       </SettingsSection>
 
       <SettingsSection title="עוד באפליקציה">

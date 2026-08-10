@@ -347,6 +347,13 @@ alter table public.recipes
 alter table public.recipes
   add column if not exists is_favorite boolean not null default false;
 
+-- Pinned recipes sort first within their category shelf on the dashboard —
+-- a shared household flag like is_favorite, not a per-device preference,
+-- since pinning is about the recipe itself rather than how one person
+-- browses.
+alter table public.recipes
+  add column if not exists is_pinned boolean not null default false;
+
 -- Who made this recipe, as an actual family member rather than a fixed pair
 -- of hardcoded names — nullable, since "who made it" isn't always relevant.
 alter table public.recipes

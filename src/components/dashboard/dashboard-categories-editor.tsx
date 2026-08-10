@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { useSettings } from "@/components/providers/settings-provider";
+import { getDashboardCategories } from "@/lib/settings-store";
 import { DIETARY_TAG_GROUPS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
@@ -10,30 +11,39 @@ import { Button } from "@/components/ui/button";
  * scrollable for more) on the main recipes page, and in what order — a
  * per-device preference like the theme/accent settings, editable by anyone,
  * not just the app admin. Shared between Settings and the bottom of the
- * dashboard itself, so there are two places to reach the same editor. */
-export function DashboardCategoriesEditor() {
+ * dashboard itself, so there are two places to reach the same editor.
+ *
+ * scopeKey is DASHBOARD_ALL_SCOPE for the unfiltered "הכול" view, or a
+ * family member's user_id for their filtered view — each scope keeps its
+ * own independent order, since the categories that matter for "רק גל" can
+ * be completely different from "הכול". */
+export function DashboardCategoriesEditor({ scopeKey }: { scopeKey: string }) {
   const [settings, setSetting] = useSettings();
   const [toAdd, setToAdd] = useState("");
-  const categories = settings.dashboardCategoryTags;
+  const categories = getDashboardCategories(settings, scopeKey);
+
+  function save(next: string[]) {
+    setSetting("dashboardCategoryTagsByOwner", {
+      ...settings.dashboardCategoryTagsByOwner,
+      [scopeKey]: next,
+    });
+  }
 
   function move(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= categories.length) return;
     const next = [...categories];
     [next[index], next[target]] = [next[target], next[index]];
-    setSetting("dashboardCategoryTags", next);
+    save(next);
   }
 
   function remove(tag: string) {
-    setSetting(
-      "dashboardCategoryTags",
-      categories.filter((t) => t !== tag),
-    );
+    save(categories.filter((t) => t !== tag));
   }
 
   function add() {
     if (!toAdd || categories.includes(toAdd)) return;
-    setSetting("dashboardCategoryTags", [...categories, toAdd]);
+    save([...categories, toAdd]);
     setToAdd("");
   }
 

@@ -4,6 +4,8 @@ import { use, useMemo, useState } from "react";
 import { ArrowUpDown, BookOpen, Search } from "lucide-react";
 import { useRecipes } from "@/lib/queries/recipes";
 import { useSettings } from "@/components/providers/settings-provider";
+import { useOwnerFilter } from "@/components/providers/owner-filter-provider";
+import { DASHBOARD_ALL_SCOPE, getDashboardCategories } from "@/lib/settings-store";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -48,20 +50,20 @@ export default function CategoryPage({ params }: { params: Promise<{ tag: string
 
   const { data: recipes, isLoading } = useRecipes();
   const [settings] = useSettings();
+  const { ownerFilter } = useOwnerFilter();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
 
   const label = isOther ? "מתכונים נוספים" : tag;
+  const dashboardCategories = getDashboardCategories(settings, ownerFilter ?? DASHBOARD_ALL_SCOPE);
 
   const categoryRecipes = useMemo(() => {
     if (!recipes) return [];
     if (isOther) {
-      return recipes.filter(
-        (r) => !settings.dashboardCategoryTags.some((t) => r.dietary_tags.includes(t)),
-      );
+      return recipes.filter((r) => !dashboardCategories.some((t) => r.dietary_tags.includes(t)));
     }
     return recipes.filter((r) => r.dietary_tags.includes(tag));
-  }, [recipes, tag, isOther, settings.dashboardCategoryTags]);
+  }, [recipes, tag, isOther, dashboardCategories]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
