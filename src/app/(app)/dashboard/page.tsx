@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, Heart, ListPlus, Pencil, Search, Tag, Trash2, Users, UtensilsCrossed } from "lucide-react";
+import { ChevronDown, Heart, ListPlus, Pencil, Search, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { useRecipes, useDeleteRecipe } from "@/lib/queries/recipes";
-import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
+import { useFamilyMembers } from "@/lib/queries/family";
 import { DIETARY_TAG_GROUPS } from "@/lib/types";
 import type { CategoryTile } from "@/lib/quick-filter-tiles";
 import { useSettings } from "@/components/providers/settings-provider";
+import { useOwnerFilter } from "@/components/providers/owner-filter-provider";
+import { DASHBOARD_ALL_SCOPE } from "@/lib/settings-store";
 import { useBackfillMissingCoverImages } from "@/lib/use-backfill-cover-images";
 import { RecipeCard } from "@/components/recipes/recipe-card";
 import { CategorizedRecipeGrid } from "@/components/dashboard/categorized-recipe-grid";
@@ -24,9 +26,9 @@ export default function DashboardPage() {
   const { data: recipes, isLoading } = useRecipes();
   const { data: familyMembers } = useFamilyMembers();
   const [settings, setSetting] = useSettings();
+  const { ownerFilter } = useOwnerFilter();
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [showCategoryTiles, setShowCategoryTiles] = useState(false);
   const [showCategoryEditor, setShowCategoryEditor] = useState(false);
@@ -130,47 +132,18 @@ export default function DashboardPage() {
   const ownerName = ownerFilter
     ? (familyMembers?.find((m) => m.user_id === ownerFilter)?.display_name ?? null)
     : null;
+  // Each dashboard owner-filter scope keeps its own category order/set (see
+  // DashboardCategoriesEditor) — "all" for the unfiltered view, otherwise
+  // the selected member's user_id.
+  const categoryScopeKey = ownerFilter ?? DASHBOARD_ALL_SCOPE;
+  const headingText = !isBrowsingUnfiltered
+    ? `${filtered.length} התאמות`
+    : ownerName
+      ? `המתכונים של ${ownerName}`
+      : null;
 
   return (
     <div className="space-y-6">
-      {familyMembers && familyMembers.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => setOwnerFilter(null)}
-            className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all cursor-pointer",
-              ownerFilter === null
-                ? "border-accent bg-accent text-accent-foreground shadow-sm"
-                : "border-border bg-surface text-muted hover:border-accent/40 hover:text-foreground",
-            )}
-          >
-            <Users className="size-3.5" />
-            הכול
-          </button>
-          {familyMembers.map((member) => {
-            const active = ownerFilter === member.user_id;
-            const preset = getMemberColorPreset(member.color);
-            const color = preset?.color ?? "var(--accent)";
-            const foreground = preset?.foreground ?? "var(--accent-foreground)";
-            return (
-              <button
-                key={member.user_id}
-                onClick={() => setOwnerFilter(active ? null : member.user_id)}
-                className={cn(
-                  "flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all cursor-pointer",
-                  active
-                    ? "shadow-sm"
-                    : "border-border bg-surface text-muted hover:border-accent/40 hover:text-foreground",
-                )}
-                style={active ? { borderColor: color, backgroundColor: color, color: foreground } : undefined}
-              >
-                {member.display_name}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {isLoading ? (
         <Spinner />
       ) : (
@@ -219,6 +192,20 @@ export default function DashboardPage() {
                 </span>
               )}
             </button>
+            {!isLoading && filtered.length > 0 && (
+              <button
+                onClick={toggleSelectionMode}
+                title="עריכת מתכונים"
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-lg border cursor-pointer transition-colors",
+                  selectionMode
+                    ? "border-accent bg-accent/15 text-accent"
+                    : "border-border bg-surface text-muted hover:bg-surface-2",
+                )}
+              >
+                <Pencil className={cn("size-4", selectionMode && "fill-white")} />
+              </button>
+            )}
           </div>
 
           {showCategoryTiles && (
@@ -250,28 +237,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!isLoading && filtered.length > 0 && (
-            <div className="flex items-center justify-between">
-              <p className="font-serif text-lg font-bold text-foreground">
-                {!isBrowsingUnfiltered
-                  ? `${filtered.length} התאמות`
-                  : ownerName
-                    ? `המתכונים של ${ownerName}`
-                    : "כל המתכונים"}
-              </p>
-              <button
-                onClick={toggleSelectionMode}
-                title="עריכת מתכונים"
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-lg border cursor-pointer transition-colors",
-                  selectionMode
-                    ? "border-accent bg-accent/15 text-accent"
-                    : "border-border text-muted hover:bg-surface-2",
-                )}
-              >
-                <Pencil className={cn("size-3.5", selectionMode && "fill-white")} />
-              </button>
-            </div>
+          {headingText && (
+            <p className="font-serif text-lg font-bold text-foreground">{headingText}</p>
           )}
 
           {selectionMode && (
@@ -321,6 +288,7 @@ export default function DashboardPage() {
             <>
               <CategorizedRecipeGrid
                 recipes={filtered}
+                scopeKey={categoryScopeKey}
                 selectedIds={selectionMode ? selectedIds : undefined}
                 onToggleSelect={toggleSelected}
                 highlightedId={highlightedId}
@@ -334,11 +302,11 @@ export default function DashboardPage() {
                 )}
               >
                 <ListPlus className="size-4" />
-                עריכת קטגוריות בעמוד הראשי
+                עריכת קטגוריות{ownerName ? ` — ${ownerName}` : ""}
               </button>
               {showCategoryEditor && (
                 <div className="mt-2">
-                  <DashboardCategoriesEditor />
+                  <DashboardCategoriesEditor scopeKey={categoryScopeKey} />
                 </div>
               )}
             </>

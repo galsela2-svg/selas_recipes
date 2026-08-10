@@ -93,6 +93,7 @@ export type Recipe = {
   tags: string[];
   dietary_tags: string[];
   is_favorite: boolean;
+  is_pinned: boolean;
   made_by_user_id: string | null;
   created_by: string | null;
   created_at: string;

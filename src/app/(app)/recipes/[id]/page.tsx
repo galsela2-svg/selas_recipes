@@ -12,6 +12,7 @@ import {
   Heart,
   ImageOff,
   Pencil,
+  Pin,
   Plus,
   ShoppingCart,
   Timer,
@@ -23,6 +24,7 @@ import {
   useDeleteRecipe,
   useRecipe,
   useToggleFavorite,
+  useTogglePinned,
   useUpdateRecipe,
 } from "@/lib/queries/recipes";
 import { getMemberColorPreset, useFamilyMembers } from "@/lib/queries/family";
@@ -62,6 +64,7 @@ export default function RecipeDetailPage({
   const deleteRecipe = useDeleteRecipe();
   const addShoppingItems = useAddShoppingItems();
   const toggleFavorite = useToggleFavorite();
+  const togglePinned = useTogglePinned();
   const updateRecipe = useUpdateRecipe();
   const [settings] = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -233,6 +236,30 @@ export default function RecipeDetailPage({
           <Heart
             className={
               recipe.is_favorite ? "size-5 fill-danger text-danger" : "size-5 text-white"
+            }
+          />
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          title="נעיצה בראש הקטגוריה בעמוד הראשי"
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePinned.mutate({ id: recipe.id, isPinned: !recipe.is_pinned });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              togglePinned.mutate({ id: recipe.id, isPinned: !recipe.is_pinned });
+            }
+          }}
+          className="absolute end-3 top-16 flex size-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm cursor-pointer transition-transform active:scale-90"
+        >
+          <Pin
+            className={
+              recipe.is_pinned ? "size-5 fill-accent text-accent" : "size-5 text-white"
             }
           />
         </div>

@@ -178,6 +178,42 @@ export function useToggleFavorite() {
   });
 }
 
+// Pinning is a shared household flag (like is_favorite), not per-device —
+// whoever pins a recipe wants it first for everyone browsing that category,
+// same reasoning as favorites.
+export function useTogglePinned() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, isPinned }: { id: string; isPinned: boolean }) => {
+      const supabase = createClient();
+      const { error } = await supabase.from("recipes").update({ is_pinned: isPinned }).eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, isPinned }) => {
+      await queryClient.cancelQueries({ queryKey: recipeKeys.all });
+      await queryClient.cancelQueries({ queryKey: recipeKeys.detail(id) });
+
+      const previousList = queryClient.getQueryData<Recipe[]>(recipeKeys.all);
+      const previousDetail = queryClient.getQueryData<Recipe>(recipeKeys.detail(id));
+
+      queryClient.setQueryData<Recipe[]>(recipeKeys.all, (old) =>
+        old?.map((r) => (r.id === id ? { ...r, is_pinned: isPinned } : r)),
+      );
+      queryClient.setQueryData<Recipe>(recipeKeys.detail(id), (old) =>
+        old ? { ...old, is_pinned: isPinned } : old,
+      );
+
+      return { previousList, previousDetail, id };
+    },
+    onError: (_err, _vars, context) => {
+      if (!context) return;
+      queryClient.setQueryData(recipeKeys.all, context.previousList);
+      queryClient.setQueryData(recipeKeys.detail(context.id), context.previousDetail);
+    },
+  });
+}
+
 export function useDeleteRecipe() {
   const queryClient = useQueryClient();
 

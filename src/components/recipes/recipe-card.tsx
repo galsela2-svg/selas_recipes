@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Circle, Clock, Heart, ImageOff } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Heart, ImageOff, Pin } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { cn, formatMinutes } from "@/lib/utils";
 
@@ -70,14 +70,20 @@ export function RecipeCard({
           )}
         </span>
       ) : (
-        // Favoriting itself only happens from inside the recipe (its own
-        // page has the toggle) — this is a passive indicator, not a
-        // button, and only takes up space when the recipe actually is one.
-        recipe.is_favorite && (
-          <span className="absolute end-1.5 top-1.5 z-10 flex size-7 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm">
-            <Heart className="size-3.5 fill-danger text-danger" />
+        // Pinning/favoriting themselves only happen from inside the recipe
+        // (its own page has the toggles) — these are passive indicators,
+        // not buttons, and only take up space when actually set.
+        recipe.is_pinned && (
+          <span className="absolute start-1.5 top-1.5 z-10 flex size-7 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm">
+            <Pin className="size-3.5 fill-accent text-accent" />
           </span>
         )
+      )}
+
+      {!selectable && recipe.is_favorite && (
+        <span className="absolute end-1.5 top-1.5 z-10 flex size-7 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm">
+          <Heart className="size-3.5 fill-danger text-danger" />
+        </span>
       )}
 
       <div className="relative mt-auto flex flex-col gap-0.5 p-2">
