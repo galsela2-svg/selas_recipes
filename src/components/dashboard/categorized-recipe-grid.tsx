@@ -31,7 +31,7 @@ function SectionPanel({
   highlightedId?: string | null;
 }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-border bg-surface-2 p-3">
+    <div className="space-y-3 rounded-2xl border border-border bg-category-panel p-3">
       <Link
         href={href}
         className="flex items-center gap-1.5 font-serif text-lg font-bold text-foreground hover:text-accent"
