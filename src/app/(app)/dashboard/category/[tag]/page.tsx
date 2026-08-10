@@ -111,7 +111,7 @@ export default function CategoryPage({ params }: { params: Promise<{ tag: string
             component definition), so this doesn't have the state-reset
             hazard the lint rule guards against. */}
         {/* eslint-disable-next-line react-hooks/static-components */}
-        <Icon className="size-5 shrink-0 text-accent" />
+        <Icon className="size-5 shrink-0 text-muted" />
         {label}
       </p>
 

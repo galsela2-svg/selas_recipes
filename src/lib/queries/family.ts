@@ -3,15 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { AdminUserRow, Family, FamilyInvite, FamilyMember, InvitePreview } from "@/lib/types";
-import { ACCENT_PRESETS } from "@/lib/settings-store";
 import { describeError } from "@/lib/utils";
-
-/** Resolves a member's stored color id (an ACCENT_PRESETS id, or null if
- * they haven't picked one) to the actual preset — the single place that
- * knows how to turn `member.color` into real CSS colors. */
-export function getMemberColorPreset(colorId: string | null | undefined) {
-  return ACCENT_PRESETS.find((p) => p.id === colorId) ?? null;
-}
 
 /** Every mutation on this page touches something added by a recent
  * supabase/schema.sql change (the color column, the admin RLS policies,
@@ -156,39 +148,6 @@ export function useDeleteInvite() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: familyKeys.invites });
-    },
-  });
-}
-
-/** Any family member can set any other member's color — a plain update
- * against the "Members can update their family's members" RLS policy in
- * schema.sql (not an RPC), since this whole app treats a household as a
- * fully co-equal, trusted group everywhere else too. */
-export function useSetMemberColor() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, color }: { userId: string; color: string | null }) => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("family_members")
-        .update({ color })
-        .eq("user_id", userId);
-      if (error) throw error;
-    },
-    onMutate: async ({ userId, color }) => {
-      await queryClient.cancelQueries({ queryKey: familyKeys.members });
-      const previous = queryClient.getQueryData<FamilyMember[]>(familyKeys.members);
-      queryClient.setQueryData<FamilyMember[]>(familyKeys.members, (old) =>
-        old?.map((m) => (m.user_id === userId ? { ...m, color } : m)),
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context) queryClient.setQueryData(familyKeys.members, context.previous);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: familyKeys.members });
     },
   });
 }

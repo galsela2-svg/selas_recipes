@@ -3,22 +3,6 @@ import { DEFAULT_DASHBOARD_CATEGORIES } from "@/lib/meal-type-sections";
 
 export type ThemeMode = "light" | "dark" | "system";
 
-export type AccentPreset = {
-  id: string;
-  name: string;
-  color: string;
-  foreground: string;
-};
-
-export const ACCENT_PRESETS: AccentPreset[] = [
-  { id: "amber", name: "ענבר", color: "#e8823a", foreground: "#14110b" },
-  { id: "rose", name: "אדום־ורוד", color: "#e0567a", foreground: "#1a0a10" },
-  { id: "teal", name: "טורקיז", color: "#2fb8a6", foreground: "#04201c" },
-  { id: "violet", name: "סגול", color: "#8b6ce0", foreground: "#12081f" },
-  { id: "blue", name: "כחול", color: "#4d8fe0", foreground: "#04101f" },
-  { id: "green", name: "ירוק", color: "#5bb85c", foreground: "#06170a" },
-];
-
 // The dashboard's owner-filter row ("הכול" / a specific member) each get
 // their own independent category order — "all" is the scope key for the
 // unfiltered view; a family member's user_id is the scope key for their
@@ -27,7 +11,6 @@ export const DASHBOARD_ALL_SCOPE = "all";
 
 export type AppSettings = {
   theme: ThemeMode;
-  accentId: string;
   defaultUnitSystem: "imperial" | "metric";
   keepScreenAwake: boolean;
   timerSoundEnabled: boolean;
@@ -42,7 +25,6 @@ export type AppSettings = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "light",
-  accentId: "rose",
   defaultUnitSystem: "metric",
   quickFilterTileKeys: DEFAULT_TILE_KEYS,
   dashboardCategoryTagsByOwner: {},
@@ -99,7 +81,7 @@ export function setSetting<K extends keyof AppSettings>(key: K, value: AppSettin
   current = { ...current, [key]: value };
   persist();
   notify();
-  if (key === "theme" || key === "accentId") applyThemeAndAccent(current);
+  if (key === "theme") applyTheme(current);
 }
 
 export function subscribeSettings(listener: () => void): () => void {
@@ -115,7 +97,7 @@ export function resolveThemeClass(theme: ThemeMode): "light" | "dark" {
   return theme;
 }
 
-export function applyThemeAndAccent(settings: AppSettings) {
+export function applyTheme(settings: AppSettings) {
   if (typeof document === "undefined") return;
 
   const resolved = resolveThemeClass(settings.theme);
@@ -123,16 +105,12 @@ export function applyThemeAndAccent(settings: AppSettings) {
   root.classList.remove("light", "dark");
   root.classList.add(resolved);
   root.style.colorScheme = resolved;
-
-  const preset = ACCENT_PRESETS.find((p) => p.id === settings.accentId) ?? ACCENT_PRESETS[0];
-  root.style.setProperty("--accent", preset.color);
-  root.style.setProperty("--accent-foreground", preset.foreground);
 }
 
 /** Inline, blocking script (as a string) — sets theme class + color-scheme
- * before first paint, so there's no flash of the wrong theme. Accent color
- * is applied slightly later, by React, since a brief accent-only flash is
- * far less jarring than a full light/dark flash. */
+ * before first paint, so there's no flash of the wrong theme. The accent
+ * color itself is a static CSS variable (globals.css), so there's nothing
+ * left for React to apply after hydration. */
 export const THEME_INIT_SCRIPT = `(function(){try{var raw=localStorage.getItem(${JSON.stringify(
   SETTINGS_STORAGE_KEY,
 )});var s=raw?JSON.parse(raw):{};var theme=s.theme||"light";var resolved=theme==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):theme;var root=document.documentElement;root.classList.remove("light","dark");root.classList.add(resolved);root.style.colorScheme=resolved;}catch(e){}})();`;

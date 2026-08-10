@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSettings } from "@/components/providers/settings-provider";
-import { ACCENT_PRESETS, DASHBOARD_ALL_SCOPE, type ThemeMode } from "@/lib/settings-store";
+import { DASHBOARD_ALL_SCOPE, type ThemeMode } from "@/lib/settings-store";
 import { useFamilyMembers } from "@/lib/queries/family";
 import { DashboardCategoriesEditor } from "@/components/dashboard/dashboard-categories-editor";
 import { Button } from "@/components/ui/button";
@@ -225,29 +225,6 @@ export default function SettingsPage() {
               >
                 <Icon className="size-5" />
                 {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="mb-3 text-sm font-medium text-foreground">צבע מבטא</p>
-          <div className="flex flex-wrap gap-3">
-            {ACCENT_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => setSetting("accentId", preset.id)}
-                title={preset.name}
-                className="flex size-10 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-surface cursor-pointer transition-shadow"
-                style={{
-                  backgroundColor: preset.color,
-                  ["--tw-ring-color" as string]:
-                    settings.accentId === preset.id ? preset.color : "transparent",
-                }}
-              >
-                {settings.accentId === preset.id && (
-                  <Check className="size-4" style={{ color: preset.foreground }} />
-                )}
               </button>
             ))}
           </div>

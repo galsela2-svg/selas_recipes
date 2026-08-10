@@ -158,7 +158,6 @@ export type FamilyMember = {
   family_id: string;
   display_name: string;
   role: FamilyRole;
-  color: string | null;
   joined_at: string;
 };
 

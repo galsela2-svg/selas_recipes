@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ChefHat } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUserId } from "@/lib/queries/auth";
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,7 @@ export function SignupForm() {
   if (awaitingConfirmation) {
     return (
       <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <ChefHat className="size-6" />
-        </div>
+        <Image src="/logo.png" alt="" width={48} height={48} className="mx-auto mb-4 size-12" />
         <h1 className="text-xl font-semibold text-foreground">כמעט סיימנו</h1>
         <p className="mt-2 text-sm text-muted">
           שלחנו מייל אימות לכתובת שהזנתם. אחרי שתאשרו אותו, חזרו והתחברו כדי להתחיל.
@@ -71,9 +70,7 @@ export function SignupForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <ChefHat className="size-6" />
-        </div>
+        <Image src="/logo.png" alt="" width={48} height={48} className="size-12" />
         <h1 className="text-xl font-semibold text-foreground">יצירת חשבון</h1>
         <p className="text-sm text-muted">
           אחרי ההרשמה תוכלו להשתמש באפליקציה לבד, או לפתוח משפחה ולהזמין אליה אנשים.
@@ -120,6 +117,13 @@ export function SignupForm() {
           יצירת חשבון
         </Button>
       </form>
+
+      <p className="mt-4 text-center text-sm text-muted">
+        כבר יש לכם חשבון?{" "}
+        <Link href="/login" className="font-medium text-accent hover:underline">
+          התחברות
+        </Link>
+      </p>
     </div>
   );
 }

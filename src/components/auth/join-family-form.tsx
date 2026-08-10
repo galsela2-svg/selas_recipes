@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Users, ChefHat } from "lucide-react";
+import { Users } from "lucide-react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUserId } from "@/lib/queries/auth";
 import { useInvitePreview, useRedeemInvite } from "@/lib/queries/family";
@@ -89,9 +90,7 @@ export function JoinFamilyForm({ token }: { token: string }) {
   if (awaitingConfirmation) {
     return (
       <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <ChefHat className="size-6" />
-        </div>
+        <Image src="/logo.png" alt="" width={48} height={48} className="mx-auto mb-4 size-12" />
         <h1 className="text-xl font-semibold text-foreground">כמעט סיימנו</h1>
         <p className="mt-2 text-sm text-muted">
           שלחנו מייל אימות לכתובת שהזנתם. אחרי שתאשרו אותו, חזרו לקישור ההזמנה הזה כדי להצטרף
