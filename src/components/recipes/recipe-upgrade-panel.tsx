@@ -107,7 +107,13 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
   function handleApply() {
     if (!result) return;
     updateRecipe.mutate(
-      { id: recipe.id, input: buildInputFromResult(result) },
+      {
+        id: recipe.id,
+        input: buildInputFromResult(result),
+        // Keeps whichever original was captured first — a second upgrade
+        // shouldn't overwrite it with the (already-upgraded) current state.
+        originalIngredients: recipe.original_ingredients ?? recipe.ingredients,
+      },
       {
         onSuccess: () => {
           setOpen(false);
@@ -119,7 +125,10 @@ export function RecipeUpgradePanel({ recipe }: { recipe: Recipe }) {
 
   function handleSaveAsNew() {
     if (!result) return;
-    createRecipe.mutate(buildInputFromResult(result), {
+    createRecipe.mutate({
+      input: buildInputFromResult(result),
+      originalIngredients: recipe.original_ingredients ?? recipe.ingredients,
+    }, {
       onSuccess: (newRecipe) => {
         setOpen(false);
         reset();

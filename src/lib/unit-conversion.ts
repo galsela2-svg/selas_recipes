@@ -1,6 +1,10 @@
 import { formatQuantity, parseLeadingQuantity } from "@/lib/quantity-scaling";
 
-export type UnitSystem = "imperial" | "metric";
+// "original" means "don't convert anything" — the caller shows the
+// recipe's own stored text as-is instead of calling these functions at all
+// for ingredients, but instructions (which have no separate "original" copy)
+// still route through here, so both conversions below no-op for it.
+export type UnitSystem = "imperial" | "metric" | "original";
 
 type UnitKind = "volume-imperial" | "weight-imperial" | "volume-metric" | "weight-metric";
 
@@ -153,6 +157,8 @@ function pickImperialVolumeLabel(ml: number): { value: number; label: string } {
 }
 
 export function convertIngredientLine(text: string, targetSystem: UnitSystem): string {
+  if (targetSystem === "original") return text;
+
   const parsed = parseLeadingQuantity(text);
   if (!parsed) return text;
 
@@ -215,6 +221,8 @@ export function convertIngredientLine(text: string, targetSystem: UnitSystem): s
 const TEMP_REGEX = /(-?\d+(?:\.\d+)?)\s*°?\s*(F|C|פרנהייט|צלזיוס)\b/gi;
 
 export function convertTemperaturesInText(text: string, targetSystem: UnitSystem): string {
+  if (targetSystem === "original") return text;
+
   return text.replace(TEMP_REGEX, (match, num, unitRaw) => {
     const value = Number(num);
     const unit = unitRaw.toUpperCase().startsWith("F") || unitRaw === "פרנהייט" ? "F" : "C";

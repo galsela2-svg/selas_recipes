@@ -81,16 +81,26 @@ export function useCreateRecipe() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: RecipeInput) => {
+    mutationFn: async ({
+      input,
+      originalIngredients,
+    }: {
+      input: RecipeInput;
+      /** Only set by the "שיפור מתכון" → "שמירה כמתכון חדש" flow, to carry
+       * the pre-upgrade ingredients over onto the new recipe. */
+      originalIngredients?: string[] | null;
+    }) => {
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       const familyId = await getCurrentFamilyId(supabase);
+      const insertPayload =
+        originalIngredients === undefined ? input : { ...input, original_ingredients: originalIngredients };
 
       const { data, error } = await supabase
         .from("recipes")
-        .insert({ ...input, family_id: familyId, created_by: user?.id ?? null })
+        .insert({ ...insertPayload, family_id: familyId, created_by: user?.id ?? null })
         .select()
         .single();
 
@@ -113,11 +123,24 @@ export function useUpdateRecipe() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: RecipeInput }) => {
+    mutationFn: async ({
+      id,
+      input,
+      originalIngredients,
+    }: {
+      id: string;
+      input: RecipeInput;
+      /** Only set by the "שיפור מתכון" flow, the first time it rewrites
+       * this recipe's ingredients — omitted everywhere else so a normal
+       * edit never touches this column. */
+      originalIngredients?: string[] | null;
+    }) => {
       const supabase = createClient();
+      const updatePayload =
+        originalIngredients === undefined ? input : { ...input, original_ingredients: originalIngredients };
       const { data, error } = await supabase
         .from("recipes")
-        .update(input)
+        .update(updatePayload)
         .eq("id", id)
         .select()
         .single();

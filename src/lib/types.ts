@@ -89,6 +89,10 @@ export type Recipe = {
   cook_time_minutes: number | null;
   servings: number | null;
   ingredients: string[];
+  /** Ingredient quantities exactly as first entered/imported, before any AI
+   * rewrite (e.g. "שיפור מתכון") changed `ingredients` — null until the
+   * first such rewrite happens, since until then they're identical. */
+  original_ingredients: string[] | null;
   instructions: string[];
   tags: string[];
   dietary_tags: string[];

@@ -537,6 +537,12 @@ begin
   end if;
 end $$;
 
+-- Ingredient quantities exactly as first entered/imported, captured the
+-- first time an AI rewrite (e.g. "שיפור מתכון") changes `ingredients` —
+-- null until then, since until that point they're identical anyway.
+alter table public.recipes
+  add column if not exists original_ingredients jsonb;
+
 -- ---------------------------------------------------------------------------
 -- recipes: indexes, constraints, trigger, and RLS (after family_id/
 -- made_by_user_id above are fully migrated and non-null).

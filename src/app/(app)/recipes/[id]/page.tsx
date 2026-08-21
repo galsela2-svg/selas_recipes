@@ -79,6 +79,15 @@ export default function RecipeDetailPage({
 
   const scaledIngredients = useMemo(() => {
     if (!recipe) return [];
+    // "original" shows the recipe's own stored text verbatim — no serving
+    // scaling, no unit conversion — so it stays a faithful record of what
+    // was first entered/imported, even after later AI rewrites.
+    if (unitSystem === "original") {
+      return (recipe.original_ingredients ?? recipe.ingredients).map((ingredient) => ({
+        original: ingredient,
+        text: ingredient,
+      }));
+    }
     return recipe.ingredients.map((ingredient) => {
       const scaled = scaleIngredientText(ingredient, multiplier);
       const converted = convertIngredientLine(scaled, unitSystem);
@@ -388,10 +397,23 @@ export default function RecipeDetailPage({
               >
                 מטרי
               </button>
+              <button
+                onClick={() => setUnitSystem("original")}
+                title="הכמויות כפי שנכתבו במקור, לפני כל שינוי של AI"
+                className={cn(
+                  "px-2.5 py-1.5 cursor-pointer",
+                  unitSystem === "original" ? "bg-accent text-accent-foreground" : "text-muted",
+                )}
+              >
+                מקורי
+              </button>
             </div>
           </div>
 
           <ServingsAdjuster servings={servings} onChange={setTargetServings} />
+          {unitSystem === "original" && (
+            <p className="text-xs text-muted">התצוגה המקורית אינה מותאמת למספר המנות.</p>
+          )}
 
           <ul className="space-y-2">
             {scaledIngredients.map((ingredient, i) => (
